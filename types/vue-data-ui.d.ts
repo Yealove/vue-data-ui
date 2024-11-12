@@ -2297,6 +2297,7 @@ declare module 'vue-data-ui' {
             rounding?: number;
             responsiveBreakpoint?: number;
             sparkline?: boolean;
+            showSum?: boolean;
             columnNames?: {
                 period?: string;
                 total?: string;
@@ -2327,6 +2328,8 @@ declare module 'vue-data-ui' {
         comments?: string[];
         shape?: Shape;
         smooth?: boolean;
+        prefix?: string;
+        suffix?: string;
     };
 
     export type VueUiXyDatasetBarItem = {
