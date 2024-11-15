@@ -460,13 +460,13 @@
                     >
                         <Shape
                             :data-cy="`xy-plot-${i}-${j}`"
-                            v-if="canShowValue(plot.value)"
+                            v-if="plot && canShowValue(plot.value)"
                             :shape="['triangle', 'square', 'diamond', 'pentagon', 'hexagon', 'star'].includes(serie.shape) ? serie.shape : 'circle'"
-                            :color="FINAL_CONFIG.plot.useGradient ? `url(#plotGradient_${i}_${uniqueId})` : serie.color"
+                            :color="FINAL_CONFIG.plot.useGradient ? `url(#plotGradient_${i}_${uniqueId})` : FINAL_CONFIG.plot.dot.useSerieColor ? serie.color : FINAL_CONFIG.plot.dot.fill"
                             :plot="{ x: checkNaN(plot.x), y: checkNaN(plot.y) }"
                             :radius="((selectedSerieIndex !== null && selectedSerieIndex === j) || (selectedMinimapIndex !== null && selectedMinimapIndex === j)) ? (plotRadii.plot || 6) * 1.5 : plotRadii.plot || 6"
-                            :stroke="FINAL_CONFIG.chart.backgroundColor"
-                            :strokeWidth="0.5"
+                            :stroke="FINAL_CONFIG.plot.dot.useSerieColor ? FINAL_CONFIG.chart.backgroundColor : serie.color"
+                            :strokeWidth="FINAL_CONFIG.plot.dot.strokeWidth"
                         />
 
                         <template v-if="plot.comment && FINAL_CONFIG.chart.comments.show">
@@ -589,11 +589,11 @@
                             :data-cy="`xy-plot-${i}-${j}`"
                             v-if="plot && canShowValue(plot.value)"
                             :shape="['triangle', 'square', 'diamond', 'pentagon', 'hexagon', 'star'].includes(serie.shape) ? serie.shape : 'circle'"
-                            :color="FINAL_CONFIG.line.useGradient ? `url(#lineGradient_${i}_${uniqueId})` : serie.color"
+                            :color="FINAL_CONFIG.line.useGradient ? `url(#lineGradient_${i}_${uniqueId})` : FINAL_CONFIG.line.dot.useSerieColor ? serie.color : FINAL_CONFIG.line.dot.fill"
                             :plot="{ x: checkNaN(plot.x), y: checkNaN(plot.y) }"
                             :radius="((selectedSerieIndex !== null && selectedSerieIndex === j) || (selectedMinimapIndex !== null && selectedMinimapIndex === j)) ? (plotRadii.line || 6) * 1.5 : plotRadii.line || 6"
-                            :stroke="FINAL_CONFIG.chart.backgroundColor"
-                            :strokeWidth="0.5"
+                            :stroke="FINAL_CONFIG.line.dot.useSerieColor ? FINAL_CONFIG.chart.backgroundColor : serie.color"
+                            :strokeWidth="FINAL_CONFIG.line.dot.strokeWidth"
                         />
 
                         <template v-if="plot.comment && FINAL_CONFIG.chart.comments.show">
@@ -1152,8 +1152,6 @@
 </template>
 
 <script>
-import pdf from '../pdf';
-import img from "../img";
 import { 
     abbreviate,
     adaptColorToBackground,
@@ -1748,6 +1746,13 @@ export default {
                             value: datapoint.absoluteValues[j],
                             comment: datapoint.comments ? datapoint.comments.slice(this.slicer.start, this.slicer.end)[j] || '' : ''
                         }
+                    } else {
+                        return {
+                            x: this.checkNaN((this.drawingArea.left + (this.slot.line/2)) + (this.slot.line * j)),
+                            y: zeroPosition,
+                            value: datapoint.absoluteValues[j],
+                            comment: datapoint.comments ? datapoint.comments.slice(this.slicer.start, this.slicer.end)[j] || '' : ''
+                        }
                     }
                 })
                 const curve = this.createSmoothPath(plots);
@@ -2211,11 +2216,9 @@ export default {
         error,
         functionReturnsString,
         hasDeepProperty,
-        img,
         isFunction,
         isSafeValue,
         objectIsEmpty,
-        pdf,
         setOpacity,
         shiftHue,
         translateSize,
@@ -2608,17 +2611,24 @@ export default {
         showSpinnerPdf() {
             this.isPrinting = true;
         },
-        generatePdf(){
+        async generatePdf() {
             this.showSpinnerPdf();
             clearTimeout(this.__to__);
-            this.__to__ = setTimeout(() => {
-                this.pdf({
+            this.isPrinting = true; // Set isPrinting to true before starting
+
+            this.__to__ = setTimeout(async () => {
+            try {
+                const { default: pdf } = await import('../pdf.js');
+                await pdf({
                     domElement: document.getElementById(`vue-ui-xy_${this.uniqueId}`),
-                    fileName: this.FINAL_CONFIG.chart.title.text || 'vue-ui-xy'
-                }).finally(() => {
-                    this.isPrinting = false;
+                    fileName: this.FINAL_CONFIG.chart.title.text || 'vue-ui-xy',
                 });
-            }, 100)
+                } catch (error) {
+                    console.error('Error generating PDF:', error);
+                } finally {
+                    this.isPrinting = false;
+                }
+            }, 100);
         },
         generateCsv() {
             const title = [[this.FINAL_CONFIG.chart.title.text], [this.FINAL_CONFIG.chart.title.subtitle.text], [""]];
@@ -2631,19 +2641,25 @@ export default {
         showSpinnerImage() {
             this.isImaging = true;
         },
-        generateImage() {
+        async generateImage() {
             this.showSpinnerImage();
             clearTimeout(this.__to__);
-            this.__to__ = setTimeout(() => {
-                this.img({
+            this.isImaging = true;
+            this.__to__ = setTimeout(async () => {
+            try {
+                    const { default: img } = await import('../img.js');
+                    await img({
                     domElement: document.getElementById(`vue-ui-xy_${this.uniqueId}`),
                     fileName: this.FINAL_CONFIG.chart.title.text || 'vue-ui-xy',
-                    format: 'png'
-                }).finally(() => {
+                    format: 'png',
+                    });
+                } catch (error) {
+                    console.error('Error generating image:', error);
+                } finally {
                     this.isImaging = false;
-                });
-            }, 100)
-        }
+                }
+            }, 100);
+        },
     }
 }
 </script>

@@ -212,6 +212,7 @@ const minimapLine = computed(() => {
     return {
         fullSet,
         selectionSet,
+        sliced,
         firstPlot: points[props.valueStart],
         lastPlot: points[props.valueEnd - 1]
     }
@@ -325,13 +326,27 @@ function trapMouse(trap) {
                             :width="selectionRectCoordinates.width < 0 ? 0 : selectionRectCoordinates.width"
                             :height="svgMinimap.height"
                             :y="0"
+                            :fill="borderColor"
+                        />
+
+                        <rect
+                            :x="selectionRectCoordinates.x"
+                            :width="selectionRectCoordinates.width < 0 ? 0 : selectionRectCoordinates.width"
+                            :height="svgMinimap.height"
+                            :y="0"
                             :fill="minimapSelectedColor"
                             :style="{
                                 opacity: minimapSelectedColorOpacity
                             }"
                         />
 
-                        <!-- This is not quite there yet: there's an annoying offset between input handles and plots -->
+                        <path 
+                            :d="`M${minimapLine.sliced[0].x},${svgMinimap.height} ${minimapLine.selectionSet} L${minimapLine.sliced.at(-1).x},${svgMinimap.height}Z`" 
+                            :fill="`url(#${uid})`"
+                            stroke="none"
+                            style="opacity: 1"
+                        />
+
                         <path 
                             :d="`M ${minimapLine.selectionSet}`" 
                             :stroke="`${minimapLineColor}`" 
@@ -340,6 +355,7 @@ function trapMouse(trap) {
                             stroke-linecap="round"
                             stroke-linejoin="round"
                         />
+
                         <circle
                             :cx="minimapLine.firstPlot.x"
                             :cy="minimapLine.firstPlot.y"
@@ -348,6 +364,7 @@ function trapMouse(trap) {
                             r="3"
                             :fill="minimapLineColor"
                         />
+
                         <circle
                             :cx="minimapLine.lastPlot.x"
                             :cy="minimapLine.lastPlot.y"

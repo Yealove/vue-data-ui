@@ -171,13 +171,18 @@ const total = computed(() => {
 
 const absoluteDataset = computed(() => {
     return safeDatasetCopy.value.map((d, i) => {
+        const dValue = d.value || 0;
+        const _dProportion = dValue / total.value;
+        const dProportion = isNaN(_dProportion) ? 0 : _dProportion;
+        const dWidth = dProportion * svg.value.width;
+
         return {
             ...d,
-            value: d.value || 0,
-            proportion: (d.value || 0) / total.value,
-            width: (d.value || 0) / total.value * svg.value.width,
+            value: dValue,
+            proportion: dProportion,
+            width: dWidth,
             proportionLabel: dataLabel({
-                v: (d.value || 0) / total.value * 100,
+                v: dProportion * 100,
                 s: '%',
                 r: FINAL_CONFIG.value.style.legend.percentage.rounding
             }),
@@ -253,7 +258,7 @@ function selectDatapoint(datapoint, index) {
                 />
             </clipPath>
         </defs>
-            <g clip-path="url(#stackPill)">
+            <g clip-path="url(#stackPill)" v-if="total > 0">
                 <rect 
                     :x="0" 
                     :y="0" 
@@ -275,6 +280,16 @@ function selectDatapoint(datapoint, index) {
                     :class="{'animated': !isLoading}"
                 />
             </g>
+            <rect v-else
+                :x="2"
+                :y="1"
+                :width="svg.width - 4"
+                :height="svg.height - 2"
+                stroke="#CCCCCC"
+                stroke-width="2"
+                fill="transparent"
+                :rx="(svg.height - 4) / 2"
+            />
         </svg>
 
         <Skeleton
