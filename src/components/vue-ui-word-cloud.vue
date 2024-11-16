@@ -3,7 +3,7 @@ import { ref, watch, computed, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import themes from "../themes.json";
 import Title from '../atoms/Title.vue';
 import UserOptions from '../atoms/UserOptions.vue';
-import { checkNaN, createUid, createWordCloudDatasetFromPlainText } from '../lib';
+import { checkNaN, createUid, createWordCloudDatasetFromPlainText, isFunction } from '../lib';
 import { debounce } from '../canvas-lib';
 import {
     createCsvContent,
@@ -24,6 +24,8 @@ import { useNestedProp } from '../useNestedProp';
 import { usePrinter } from '../usePrinter';
 import { useResponsive } from '../useResponsive';
 import { useConfig } from '../useConfig';
+import PackageVersion from '../atoms/PackageVersion.vue';
+import Tooltip from '../atoms/Tooltip.vue';
 
 const { vue_ui_word_cloud: DEFAULT_CONFIG } = useConfig();
 
@@ -64,6 +66,7 @@ const wordCloudChart = ref(null);
 const chartTitle = ref(null);
 const titleStep = ref(0);
 const tableStep = ref(0);
+const isTooltip = ref(false);
 
 const FINAL_CONFIG = computed({
     get: () => {
@@ -97,15 +100,15 @@ watch(() => props.config, (_newCfg) => {
     prepareChart();
     titleStep.value += 1;
     tableStep.value += 1;
-    slicer.value = FINAL_CONFIG.value.style.chart.width;
+    refreshSlicer();
 }, { deep: true });
 
 const chartSlicer = ref(null);
-const slicer = ref(FINAL_CONFIG.value.style.chart.width);
+const slicer = ref(0);
 
 const svg = ref({
-    width: slicer.value,
-    height: FINAL_CONFIG.value.style.chart.height / FINAL_CONFIG.value.style.chart.height * slicer.value,
+    width: FINAL_CONFIG.value.style.chart.width,
+    height: FINAL_CONFIG.value.style.chart.height,
     maxFontSize: FINAL_CONFIG.value.style.chart.words.maxFontSize,
     minFontSize: FINAL_CONFIG.value.style.chart.words.minFontSize
 });
@@ -126,19 +129,18 @@ watch(() => slicer.value, () => {
 });
 
 const debounceUpdateCloud = debounce(() => {
-    svg.value.width = Number(slicer.value)
-    svg.value.height = FINAL_CONFIG.value.style.chart.height / FINAL_CONFIG.value.style.chart.height * Number(slicer.value)
     generateWordCloud()
 }, 10);
 
 function refreshSlicer() {
-    slicer.value = FINAL_CONFIG.value.style.chart.width;
+    slicer.value = wordMin.value;
 }
 
 const resizeObserver = ref(null);
 
 onMounted(() => {
     prepareChart();
+    refreshSlicer();
 });
 
 function prepareChart() {
@@ -180,6 +182,7 @@ const { isPrinting, isImaging, generatePdf, generateImage } = usePrinter({
 
 const mutableConfig = ref({
     showTable: FINAL_CONFIG.value.table.show,
+    showTooltip: FINAL_CONFIG.value.style.chart.tooltip.show,
 });
 
 function measureTextSize(text, fontSize, fontFamily = "Arial") {
@@ -242,12 +245,19 @@ const positionedWords = ref([]);
 
 watch(() => props.dataset, generateWordCloud, { immediate: true });
 
+const wordMin = computed(() => {
+    return Math.min(...drawableDataset.value.map(w => w.value))
+})
+const wordMax = computed(() => {
+    return Math.max(...drawableDataset.value.map(w => w.value))
+})
+
 function generateWordCloud() {
-    const values = drawableDataset.value.map(d => d.value);
+    const values = [...drawableDataset.value].filter(w => w.value >= slicer.value).map(d => d.value);
     const maxValue = Math.max(...values);
     const minValue = Math.min(...values);
 
-    const scaledWords = drawableDataset.value.map((word, i) => {
+    const scaledWords = [...drawableDataset.value].filter(w => w.value >= slicer.value).map((word, i) => {
         const fontSize = ((word.value - minValue) / (maxValue - minValue)) * (svg.value.maxFontSize - svg.value.minFontSize) + svg.value.minFontSize;
         const size = measureTextSize(word.name, fontSize);
         return {
@@ -346,13 +356,55 @@ function toggleTable() {
     mutableConfig.value.showTable = !mutableConfig.value.showTable;
 }
 
+function toggleTooltip() {
+    mutableConfig.value.showTooltip = !mutableConfig.value.showTooltip;
+}
+
 defineExpose({
     getData,
     generateCsv,
     generatePdf,
     generateImage,
-    toggleTable
+    toggleTable,
+    toggleTooltip
 });
+
+const selectedWord = ref(null);
+const useCustomFormat = ref(false);
+const tooltipContent = ref('');
+const dataTooltipSlot = ref(null);
+
+function useTooltip(word) {
+    if (!mutableConfig.value.showTooltip) return;
+    selectedWord.value = word.id;
+    dataTooltipSlot.value = { datapoint: word, config: FINAL_CONFIG.value };
+    const customFormat = FINAL_CONFIG.value.style.chart.tooltip.customFormat;
+    useCustomFormat.value = false;
+
+    if (isFunction(customFormat)) {
+        try {
+            const customFormatString = customFormat({
+                datapoint: word,
+                config: FINAL_CONFIG.value
+            });
+            if (typeof customFormatString === 'string') {
+                tooltipContent.value = customFormatString;
+                useCustomFormat.value = true;
+            }
+        } catch (err) {
+            console.warn('Custom format cannot be applied.');
+            useCustomFormat.value = false;
+        }
+    }
+
+    if (!useCustomFormat.value) {
+        let html = `<svg viewBox="0 0 10 10" height="${FINAL_CONFIG.value.style.chart.tooltip.fontSize}"><circle cx="5" cy="5" r="5" fill="${word.color}"/></svg><span>${word.name}:</span><b>${(word.value || 0).toFixed(FINAL_CONFIG.value.style.chart.tooltip.roundingValue)}</b>`;
+
+        tooltipContent.value = `<div dir="auto" style="display:flex; gap:4px; align-items:center; jsutify-content:center;">${html}</div>`;
+    }
+
+    isTooltip.value = true;
+}
 
 </script>
 
@@ -391,11 +443,14 @@ defineExpose({
             :titles="{ ...FINAL_CONFIG.userOptions.buttonTitles }"
             :chartElement="wordCloudChart" 
             :position="FINAL_CONFIG.userOptions.position"
+            :hasTooltip="FINAL_CONFIG.style.chart.tooltip.show && FINAL_CONFIG.userOptions.buttons.tooltip"
+            :isTooltip="mutableConfig.showTooltip"
             @toggleFullscreen="toggleFullscreen"
             @generatePdf="generatePdf" 
             @generateCsv="generateCsv" 
             @generateImage="generateImage"
-            @toggleTable="toggleTable" 
+            @toggleTable="toggleTable"
+            @toggleTooltip="toggleTooltip"
         >
             <template #optionPdf v-if="$slots.optionPdf">
                 <slot name="optionPdf" />
@@ -416,7 +471,10 @@ defineExpose({
 
         <svg :class="{ 'vue-data-ui-fullscreen--on': isFullscreen, 'vue-data-ui-fulscreen--off': !isFullscreen  }" v-if="isDataset"
             :xmlns="XMLNS" :viewBox="`0 0 ${svg.width <= 0 ? 10 : svg.width} ${svg.height <= 0 ? 10 : svg.height}`"
-            :style="`overflow:visible;background:transparent;`">
+            :style="`overflow:visible;background:transparent;`"
+        >
+            <PackageVersion />
+            
             <g
                 :transform="`translate(${(svg.width <= 0 ? 10 : svg.width) / 2}, ${(svg.height <= 0 ? 10 : svg.height) / 2})`">
                 <g v-for="(word, index) in positionedWords">
@@ -425,10 +483,12 @@ defineExpose({
                         :font-weight="FINAL_CONFIG.style.chart.words.bold ? 'bold' : 'normal'" :key="index"
                         :x="word.x" :y="word.y" :font-size="word.fontSize"
                         :transform="`translate(${word.width / 2}, ${word.height / 2})`"
-                        :style="`animation-delay:${index * FINAL_CONFIG.animationDelayMs}ms !important`"
-                        :class="{'animated': FINAL_CONFIG.useCssAnimation}"
+                        :class="{'animated': FINAL_CONFIG.useCssAnimation, 'word-selected': selectedWord && selectedWord === word.id && mutableConfig.showTooltip, 'word-not-selected': selectedWord && selectedWord !== word.id && mutableConfig.showTooltip }"
                         text-anchor="middle"
                         dominant-baseline="middle"
+                        @mouseover="useTooltip(word)"
+                        @mouseleave="selectedWord = null; isTooltip = false"
+                        :style="`animation-delay:${index * FINAL_CONFIG.animationDelayMs}ms !important;`"
                     >
                         {{ word.name }}
                     </text>
@@ -441,12 +501,35 @@ defineExpose({
             <slot name="watermark" v-bind="{ isPrinting: isPrinting || isImaging }"/>
         </div>
 
+        <Tooltip
+            :show="mutableConfig.showTooltip && isTooltip"
+            :backgroundColor="FINAL_CONFIG.style.chart.tooltip.backgroundColor"
+            :color="FINAL_CONFIG.style.chart.tooltip.color"
+            :fontSize="FINAL_CONFIG.style.chart.tooltip.fontSize"
+            :borderRadius="FINAL_CONFIG.style.chart.tooltip.borderRadius"
+            :borderColor="FINAL_CONFIG.style.chart.tooltip.borderColor"
+            :borderWidth="FINAL_CONFIG.style.chart.tooltip.borderWidth"
+            :backgroundOpacity="FINAL_CONFIG.style.chart.tooltip.backgroundOpacity"
+            :position="FINAL_CONFIG.style.chart.tooltip.position"
+            :offsetY="FINAL_CONFIG.style.chart.tooltip.offsetY"
+            :parent="wordCloudChart"
+            :content="tooltipContent"
+            :isCustom="useCustomFormat"
+        >
+            <template #tooltip-before>
+                <slot name="tooltip-before" v-bind="{...dataTooltipSlot}"></slot>
+            </template>
+            <template #tooltip-after>
+                <slot name="tooltip-after" v-bind="{...dataTooltipSlot}"></slot>
+            </template>
+        </Tooltip>
+
         <div ref="chartSlicer" :style="`width:100%;background:transparent`" data-html2canvas-ignore>
             <MonoSlicer
                 v-if="FINAL_CONFIG.style.chart.zoom.show"
                 v-model:value="slicer"
-                :min="100"
-                :max="FINAL_CONFIG.style.chart.width * 3"
+                :min="wordMin"
+                :max="wordMax"
                 :textColor="FINAL_CONFIG.style.chart.color"
                 :inputColor="FINAL_CONFIG.style.chart.zoom.color"
                 :selectColor="FINAL_CONFIG.style.chart.zoom.highlightColor"
@@ -509,7 +592,7 @@ defineExpose({
 text.animated {
     opacity:0;
     user-select: none;
-    animation: word-opacity 0.3s ease-in forwards;
+    animation: word-opacity 0.2s ease-in forwards;
     transform-origin: center;
 }
 
@@ -521,4 +604,13 @@ text.animated {
         opacity: 1;
     }
 }
+
+.animated.word-selected {
+    opacity: 1;
+}
+.word-not-selected {
+    opacity: 0.5 !important;
+}
+
+
 </style>
