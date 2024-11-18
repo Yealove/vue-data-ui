@@ -748,6 +748,7 @@ export function createSmoothPath(points) {
         dy[i] = points[i + 1].y - points[i].y;
         slopes[i] = dy[i] / dx[i];
     }
+
     tangents[0] = slopes[0];
     tangents[n] = slopes[n - 1];
 
@@ -755,8 +756,8 @@ export function createSmoothPath(points) {
         if (slopes[i - 1] * slopes[i] <= 0) {
             tangents[i] = 0;
         } else {
-            const commonSlope = (slopes[i - 1] + slopes[i]) / 2;
-            tangents[i] = commonSlope;
+            const harmonicMean = (2 * slopes[i - 1] * slopes[i]) / (slopes[i - 1] + slopes[i]);
+            tangents[i] = harmonicMean;
         }
     }
 
@@ -765,10 +766,8 @@ export function createSmoothPath(points) {
         const y1 = points[i].y;
         const x2 = points[i + 1].x;
         const y2 = points[i + 1].y;
-
         const m1 = tangents[i];
         const m2 = tangents[i + 1];
-
         const controlX1 = x1 + (x2 - x1) / 3;
         const controlY1 = y1 + m1 * (x2 - x1) / 3;
         const controlX2 = x2 - (x2 - x1) / 3;
@@ -776,8 +775,10 @@ export function createSmoothPath(points) {
 
         path.push(`C ${checkNaN(controlX1)},${checkNaN(controlY1)} ${checkNaN(controlX2)},${checkNaN(controlY2)} ${checkNaN(x2)},${checkNaN(y2)}`);
     }
+
     return path.join(' ');
 }
+
 
 export function createUid() {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'
