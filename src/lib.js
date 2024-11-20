@@ -1495,6 +1495,7 @@ export function convertNameColorToHex(colorName) {
         WHITESMOKE: "#F5F5F5",
         YELLOW: "#FFFF00",
         YELLOWGREEN: "#9ACD32",
+        REBECCAPURPLE: "#663399"
     };
     return colorMap[colorName.toUpperCase()] || colorName;
 }
@@ -1847,6 +1848,7 @@ export function sanitizeArray(arr, keys = []) {
         if ([NaN, undefined, Infinity, -Infinity, null].includes(value)) {
             console.warn(`A non processable value was detected : ${value}`)
         }
+        if (typeof value === 'string' && isNaN(Number(value))) return value;
         return (typeof value === 'number' && isFinite(value)) ? value : 0;
     }
 
