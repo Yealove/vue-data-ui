@@ -3973,10 +3973,13 @@ declare module 'vue-data-ui' {
                 position?: "bottom" | "top" | "left" | "right",
                 offsetY?: number;
                 offsetX?: number;
+                formatter?: Formatter;
             };
             tooltip?: ChartTooltip & {
                 offsetY?: number;
                 bold?: boolean;
+                roundingValue?: number;
+                formatter?: Formatter;
             };
         };
     };
@@ -4024,10 +4027,13 @@ declare module 'vue-data-ui' {
                 position?: string;
                 offsetY?: number;
                 offsetX?: number;
+                formatter?: Formatter;
             };
             tooltip?: ChartTooltip & {
                 offsetY?: number;
                 bold?: boolean;
+                roundingValue?: number;
+                formatter?: Formatter;
             };
         };
     };
