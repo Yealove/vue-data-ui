@@ -3,6 +3,8 @@ export function useResponsive({
     title = null,
     slicer = null,
     legend = null,
+    source = null,
+    noTitle = null,
 }) {
     let height = 0;
     let width = 0;
@@ -14,6 +16,8 @@ export function useResponsive({
         let heightTitle = 0;
         let heightSlicer = 0;
         let heightLegend = 0;
+        let heightSource = 0;
+        let heightNoTitle = 0;
     
         if (title) {
             heightTitle = title.getBoundingClientRect().height;
@@ -24,8 +28,20 @@ export function useResponsive({
         if (legend) {
             heightLegend = legend.getBoundingClientRect().height;
         }
+        if (source) {
+            heightSource = source.getBoundingClientRect().height;
+        }
+        if (noTitle) {
+            heightNoTitle = noTitle.getBoundingClientRect().height
+        }
     
-        height = parentHeight - heightTitle - heightSlicer - heightLegend;
+        height = parentHeight 
+            - heightTitle 
+            - heightSlicer
+            - heightLegend 
+            - heightSource
+            - heightNoTitle;
+            
         width = parentWidth;
     }
 

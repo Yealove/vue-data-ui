@@ -15,6 +15,7 @@ import UserOptions from "../atoms/UserOptions.vue";
 import { usePrinter } from "../usePrinter";
 import PackageVersion from "../atoms/PackageVersion.vue";
 import PenAndPaper from "../atoms/PenAndPaper.vue";
+import Skeleton from "./vue-ui-skeleton.vue";
 
 const { vue_ui_bullet: DEFAULT_CONFIG } = useConfig();
 
@@ -41,7 +42,7 @@ const step = ref(0);
 
 const isDataset = computed({
     get: () => {
-        return true // TODO
+        return props.dataset.hasOwnProperty('value')
     },
     set: (bool) => {
         return bool
@@ -49,7 +50,21 @@ const isDataset = computed({
 })
 
 const hasSegments = computed(() => {
-    if(!props.dataset.segments) return false;
+    if(!props.dataset.segments) {
+        console.warn(`VueUiBullet: dataset segments is empty. Provide segments with this datastructure:\n
+segments: [
+    {
+        name: string;
+        from: number;
+        to: number;
+        color?: string;
+    },
+    {...}
+]
+        `)
+        isDataset.value = false;
+        return false;
+    }
     if(!Array.isArray(props.dataset.segments)) {
         console.warn(`VueUiBullet: dataset segments must be an array of objects with this datastructure:\n
 segments: [
@@ -62,6 +77,7 @@ segments: [
     {...}
 ] 
         `);
+        isDataset.value = false;
         return false;
     }
     if (!props.dataset.segments.length) {
@@ -75,7 +91,8 @@ segments: [
     },
     {...}
 ]
-        `)
+        `);
+        isDataset.value = false;
         return false
     };
     return true;
@@ -105,6 +122,8 @@ function prepareChart() {
                     })
                 })
             })
+        } else {
+            isDataset.value = false;
         }
     }
 
@@ -261,6 +280,9 @@ const segments = computed(() => {
 })
 
 const legendSet = computed(() => {
+    if (!segments.value || !segments.value.chunks || !segments.value.chunks.length) {
+        return []
+    }
     return segments.value.chunks.map(segment => {
         const formattedFrom = applyDataLabel(
             FINAL_CONFIG.value.style.chart.segments.dataLabels.formatter,
@@ -307,6 +329,10 @@ const { isPrinting, isImaging, generatePdf, generateImage } = usePrinter({
     fileName: FINAL_CONFIG.value.style.chart.title.text || 'vue-ui-bullet'
 });
 
+const hasOptionsNoTitle = computed(() => {
+    return FINAL_CONFIG.value.userOptions.show && !FINAL_CONFIG.value.style.chart.title.text;
+});
+
 const isFullscreen = ref(false)
 function toggleFullscreen(state) {
     isFullscreen.value = state;
@@ -346,6 +372,14 @@ defineExpose({
             :active="isAnnotator"
             @close="toggleAnnotator"
         />
+
+        <div
+            ref="noTitle"
+            v-if="hasOptionsNoTitle" 
+            class="vue-data-ui-no-title-space" 
+            :style="`height:36px; width: 100%;background:transparent`"
+        />
+
         <div ref="chartTitle" v-if="FINAL_CONFIG.style.chart.title.text" :style="`width:100%;background:transparent;`">
             <Title
                 lineHeight="1.3rem"
@@ -527,6 +561,19 @@ defineExpose({
             <slot name="watermark" v-bind="{ isPrinting: isPrinting || isImaging }"/>
         </div>
 
+        <Skeleton 
+            v-if="!isDataset"
+            :config="{
+                type: 'bullet',
+                style: {
+                    backgroundColor: FINAL_CONFIG.style.chart.backgroundColor,
+                    bullet: {
+                        color: '#CCCCCC',
+                    }
+                }
+            }"
+        />
+
         <div ref="chartLegend">
             <Legend 
                 v-if="FINAL_CONFIG.style.chart.legend.show"
@@ -542,6 +589,10 @@ defineExpose({
                 </template>
             </Legend>
             <slot name="legend" v-bind:legend="legendSet" />
+        </div>
+
+        <div v-if="$slots.source" ref="source" dir="auto">
+            <slot name="source" />
         </div>
     </div>
 </template>

@@ -63,6 +63,8 @@ const candlestickChart = ref(null);
 const chartTitle = ref(null);
 const chartLegend = ref(null);
 const chartSlicer = ref(null);
+const source = ref(null);
+const noTitle = ref(null);
 const slicerStep = ref(0);
 const tableStep = ref(0);
 const titleStep = ref(0);
@@ -134,7 +136,9 @@ function prepareChart() {
                 chart: candlestickChart.value,
                 title: FINAL_CONFIG.value.style.title.text ? chartTitle.value : null,
                 slicer: chartSlicer.value,
-                legend: chartLegend.value
+                legend: chartLegend.value,
+                source: source.value,
+                noTitle: noTitle.value
             });
             svg.value.width = width;
             svg.value.height = height;
@@ -166,6 +170,10 @@ onBeforeUnmount(() => {
 const { isPrinting, isImaging, generatePdf, generateImage } = usePrinter({
     elementId: `vue-ui-candlestick_${uid.value}`,
     fileName: FINAL_CONFIG.value.style.title.text || 'vue-ui-candlestick'
+});
+
+const hasOptionsNoTitle = computed(() => {
+    return FINAL_CONFIG.value.userOptions.show && !FINAL_CONFIG.value.style.title.text;
 });
 
 const mutableConfig = ref({
@@ -471,7 +479,7 @@ defineExpose({
 </script>
 
 <template>
-    <div ref="candlestickChart" :class="`vue-ui-candlestick ${isFullscreen ? 'vue-data-ui-wrapper-fullscreen' : ''} ${FINAL_CONFIG.useCssAnimation ? '' : 'vue-ui-dna'}`" :style="`position:relative;font-family:${FINAL_CONFIG.style.fontFamily}; text-align:center;${!FINAL_CONFIG.style.title.text ? 'padding-top:36px' : ''};background:${FINAL_CONFIG.style.backgroundColor}; ${FINAL_CONFIG.responsive ? 'height: 100%' : ''}`" :id="`vue-ui-candlestick_${uid}`">
+    <div ref="candlestickChart" :class="`vue-ui-candlestick ${isFullscreen ? 'vue-data-ui-wrapper-fullscreen' : ''} ${FINAL_CONFIG.useCssAnimation ? '' : 'vue-ui-dna'}`" :style="`position:relative;font-family:${FINAL_CONFIG.style.fontFamily}; text-align:center;background:${FINAL_CONFIG.style.backgroundColor}; ${FINAL_CONFIG.responsive ? 'height: 100%' : ''}`" :id="`vue-ui-candlestick_${uid}`">
         <PenAndPaper
             v-if="FINAL_CONFIG.userOptions.buttons.annotator"
             :parent="candlestickChart"
@@ -479,6 +487,13 @@ defineExpose({
             :color="FINAL_CONFIG.style.color"
             :active="isAnnotator"
             @close="toggleAnnotator"
+        />
+
+        <div
+            ref="noTitle"
+            v-if="hasOptionsNoTitle" 
+            class="vue-data-ui-no-title-space" 
+            :style="`height:36px; width: 100%;background:transparent`"
         />
 
         <div ref="chartTitle" v-if="FINAL_CONFIG.style.title.text" :style="`width:100%;background:transparent`">
@@ -788,6 +803,10 @@ defineExpose({
 
         <div ref="chartLegend">
             <slot name="legend" v-bind:legend="drawableDataset"></slot>
+        </div>
+
+        <div v-if="$slots.source" ref="source" dir="auto">
+            <slot name="source" />
         </div>
 
         <!-- TOOLTIP -->

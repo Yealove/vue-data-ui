@@ -66,6 +66,8 @@ const step = ref(0);
 const verticalBarChart = ref(null);
 const chartTitle = ref(null);
 const chartLegend = ref(null);
+const source = ref(null);
+const noTitle = ref(null);
 const titleStep = ref(0);
 const legendStep = ref(0)
 
@@ -114,6 +116,10 @@ const { isPrinting, isImaging, generatePdf, generateImage } = usePrinter({
     fileName: FINAL_CONFIG.value.style.chart.title.text || 'vue-ui-vertical-bar'
 });
 
+const hasOptionsNoTitle = computed(() => {
+    return FINAL_CONFIG.value.userOptions.show && !FINAL_CONFIG.value.style.chart.title.text;
+});
+
 const customPalette = computed(() => {
     return convertCustomPalette(FINAL_CONFIG.value.customPalette);
 })
@@ -153,6 +159,8 @@ function prepareChart() {
                 chart: verticalBarChart.value,
                 title: FINAL_CONFIG.value.style.chart.title.text ? chartTitle.value : null,
                 legend: FINAL_CONFIG.value.style.chart.legend.show ? chartLegend.value : null,
+                source: source.value,
+                noTitle: noTitle.value
             });
 
             baseWidth.value = width;
@@ -607,7 +615,7 @@ defineExpose({
 </script>
 
 <template>
-    <div :class="`vue-ui-vertical-bar ${isFullscreen ? 'vue-data-ui-wrapper-fullscreen' : ''} ${FINAL_CONFIG.useCssAnimation ? '' : 'vue-ui-dna'}`" ref="verticalBarChart" :id="`vue-ui-vertical-bar_${uid}`" :style="`font-family:${FINAL_CONFIG.style.fontFamily};width:100%; text-align:center;${!FINAL_CONFIG.style.chart.title.text ? 'padding-top:36px' : ''};background:${FINAL_CONFIG.style.chart.backgroundColor};${FINAL_CONFIG.responsive ? 'height: 100%' : ''}`">
+    <div :class="`vue-ui-vertical-bar ${isFullscreen ? 'vue-data-ui-wrapper-fullscreen' : ''} ${FINAL_CONFIG.useCssAnimation ? '' : 'vue-ui-dna'}`" ref="verticalBarChart" :id="`vue-ui-vertical-bar_${uid}`" :style="`font-family:${FINAL_CONFIG.style.fontFamily};width:100%; text-align:center;background:${FINAL_CONFIG.style.chart.backgroundColor};${FINAL_CONFIG.responsive ? 'height: 100%' : ''}`">
         <PenAndPaper
             v-if="FINAL_CONFIG.userOptions.buttons.annotator"
             :parent="verticalBarChart"
@@ -615,6 +623,13 @@ defineExpose({
             :color="FINAL_CONFIG.style.chart.color"
             :active="isAnnotator"
             @close="toggleAnnotator"
+        />
+
+        <div
+            ref="noTitle"
+            v-if="hasOptionsNoTitle" 
+            class="vue-data-ui-no-title-space" 
+            :style="`height:36px; width: 100%;background:transparent`"
         />
 
         <div ref="chartTitle" v-if="FINAL_CONFIG.style.chart.title.text" :style="`width:100%;background:transparent;padding-bottom:12px`">
@@ -900,6 +915,10 @@ defineExpose({
         </div>
 
         <slot name="legend" v-bind:legend="immutableDataset"></slot>
+
+        <div v-if="$slots.source" ref="source" dir="auto">
+            <slot name="source" />
+        </div>
 
         <!-- TOOLTIP -->
         <Tooltip

@@ -48,6 +48,8 @@ const details = ref(null);
 const step = ref(0);
 const wheelChart = ref(null);
 const chartTitle = ref(null);
+const source = ref(null);
+const noTitle = ref(null);
 const titleStep = ref(0);
 
 const FINAL_CONFIG = computed({
@@ -85,6 +87,10 @@ watch(() => props.config, (_newCfg) => {
 const { isPrinting, isImaging, generatePdf, generateImage } = usePrinter({
     elementId: uid.value,
     fileName: FINAL_CONFIG.value.style.chart.title.text || 'vue-ui-wheel'
+});
+
+const hasOptionsNoTitle = computed(() => {
+    return FINAL_CONFIG.value.userOptions.show && !FINAL_CONFIG.value.style.chart.title.text;
 });
 
 const svg = ref({
@@ -141,6 +147,8 @@ function prepareChart() {
             const { width, height } = useResponsive({
                 chart: wheelChart.value,
                 title: FINAL_CONFIG.value.style.chart.title.text ? chartTitle.value : null,
+                source: source.value,
+                noTitle: noTitle.value
             });
             svg.value.width = width;
             svg.value.height = height;
@@ -226,6 +234,14 @@ defineExpose({
             :active="isAnnotator"
             @close="toggleAnnotator"
         />
+
+        <div
+            ref="noTitle"
+            v-if="hasOptionsNoTitle" 
+            class="vue-data-ui-no-title-space" 
+            :style="`height:36px; width: 100%;background:transparent`"
+        />
+
         <div ref="chartTitle" v-if="FINAL_CONFIG.style.chart.title.text" :style="`width:100%;background:transparent;padding-bottom:12px`">
             <Title
                 :key="`title_${titleStep}`"
@@ -328,6 +344,10 @@ defineExpose({
 
         <div v-if="$slots.watermark" class="vue-data-ui-watermark">
             <slot name="watermark" v-bind="{ isPrinting: isPrinting || isImaging }"/>
+        </div>
+
+        <div v-if="$slots.source" ref="source" dir="auto">
+            <slot name="source" />
         </div>
 
         <Skeleton

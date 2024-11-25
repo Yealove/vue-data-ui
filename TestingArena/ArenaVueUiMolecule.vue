@@ -247,7 +247,7 @@ const step = ref(0);
         <input type="checkbox" v-model="testCustomTooltip" id="custom-tooltip"/>
         <label for="custom-tooltip" style="color:#CCCCCC">Test custom tooltip</label>
     </div>
-    <Box>
+    <Box :dataset="dataset" comp="VueUiMolecule">
         <template #title>VueUiMolecule</template>
 
         <template #local>
@@ -268,6 +268,11 @@ const step = ref(0);
                 <template #watermark="{ isPrinting }">
                     <div v-if="isPrinting" style="font-size: 100px; opacity: 0.1; transform: rotate(-10deg)">
                         WATERMARK
+                    </div>
+                </template>
+                <template #source>
+                    <div style="width:100%;font-size:10px;text-align:left">
+                        SOURCE: Lorem ipsum dolor sit, amet consectetur adipisicing elit. Tenetur, molestiae perspiciatis nam quae libero, deserunt in aperiam unde officia sint saepe laboriosam ducimus aspernatur labore! Sapiente aspernatur corrupti quis ad.
                     </div>
                 </template> 
             </LocalVueUiMolecule>

@@ -132,6 +132,10 @@ const { isPrinting, isImaging, generatePdf, generateImage } = usePrinter({
     fileName: FINAL_CONFIG.value.style.chart.title.text || 'vue-ui-galaxy'
 });
 
+const hasOptionsNoTitle = computed(() => {
+    return FINAL_CONFIG.value.userOptions.show && !FINAL_CONFIG.value.style.chart.title.text;
+});
+
 const customPalette = computed(() => {
     return convertCustomPalette(FINAL_CONFIG.value.customPalette);
 })
@@ -440,6 +444,13 @@ defineExpose({
             @close="toggleAnnotator"
         />
 
+        <div
+            ref="noTitle"
+            v-if="hasOptionsNoTitle" 
+            class="vue-data-ui-no-title-space" 
+            :style="`height:36px; width: 100%;background:transparent`"
+        />
+
         <div v-if="FINAL_CONFIG.style.chart.title.text" :style="`width:100%;background:transparent;padding-bottom:24px`">            
             <Title
                 :key="`title_${titleStep}`"
@@ -628,6 +639,10 @@ defineExpose({
         </Legend>
         
         <slot name="legend" v-bind:legend="legendSet" />
+
+        <div v-if="$slots.source" ref="source" dir="auto">
+            <slot name="source" />
+        </div>
 
         <!-- TOOLTIP -->
         <Tooltip

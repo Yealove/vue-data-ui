@@ -67,6 +67,8 @@ const step = ref(0);
 const nestedDonutsChart = ref(null);
 const chartTitle = ref(null);
 const chartLegend = ref(null);
+const source = ref(null);
+const noTitle = ref(null);
 const titleStep = ref(0);
 const tableStep = ref(0);
 const legendStep = ref(0);
@@ -132,6 +134,8 @@ function prepareChart() {
                 chart: nestedDonutsChart.value,
                 title: FINAL_CONFIG.value.style.chart.title.text ? chartTitle.value : null,
                 legend: FINAL_CONFIG.value.style.chart.legend.show ? chartLegend.value : null,
+                source: source.value,
+                noTitle: noTitle.value
             });
             svg.value.width = width;
             svg.value.height = height;
@@ -149,6 +153,10 @@ onBeforeUnmount(() => {
 const { isPrinting, isImaging, generatePdf, generateImage } = usePrinter({
     elementId: `nested_donuts_${uid.value}`,
     fileName: FINAL_CONFIG.value.style.chart.title.text || 'vue-ui-nested-donuts'
+});
+
+const hasOptionsNoTitle = computed(() => {
+    return FINAL_CONFIG.value.userOptions.show && !FINAL_CONFIG.value.style.chart.title.text;
 });
 
 const customPalette = computed(() => {
@@ -731,7 +739,7 @@ defineExpose({
 </script>
 
 <template>
-    <div ref="nestedDonutsChart" :class="`vue-ui-nested-donuts ${isFullscreen ? 'vue-data-ui-wrapper-fullscreen' : ''} ${FINAL_CONFIG.useCssAnimation ? '' : 'vue-ui-dna'}`" :style="`font-family:${FINAL_CONFIG.style.fontFamily};width:100%; text-align:center;${(!FINAL_CONFIG.style.chart.title.text && FINAL_CONFIG.userOptions.show) ? 'padding-top:36px' : ''};background:${FINAL_CONFIG.style.chart.backgroundColor}`" :id="`nested_donuts_${uid}`">
+    <div ref="nestedDonutsChart" :class="`vue-ui-nested-donuts ${isFullscreen ? 'vue-data-ui-wrapper-fullscreen' : ''} ${FINAL_CONFIG.useCssAnimation ? '' : 'vue-ui-dna'}`" :style="`font-family:${FINAL_CONFIG.style.fontFamily};width:100%; text-align:center;background:${FINAL_CONFIG.style.chart.backgroundColor}`" :id="`nested_donuts_${uid}`">
         <PenAndPaper 
             v-if="FINAL_CONFIG.userOptions.buttons.annotator"
             :parent="nestedDonutsChart"
@@ -739,6 +747,13 @@ defineExpose({
             :color="FINAL_CONFIG.style.chart.color"
             :active="isAnnotator"
             @close="toggleAnnotator"
+        />
+
+        <div
+            ref="noTitle"
+            v-if="hasOptionsNoTitle" 
+            class="vue-data-ui-no-title-space" 
+            :style="`height:36px; width: 100%;background:transparent`"
         />
 
         <div ref="chartTitle" v-if="FINAL_CONFIG.style.chart.title.text">        
@@ -1051,6 +1066,10 @@ defineExpose({
 
         <div ref="chartLegend" v-if="!FINAL_CONFIG.style.chart.legend.show">
             <slot name="legend" v-bind:legend="legendSets"></slot>
+        </div>
+
+        <div v-if="$slots.source" ref="source" dir="auto">
+            <slot name="source" />
         </div>
 
         <!-- DATA TABLE -->
