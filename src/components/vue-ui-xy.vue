@@ -673,7 +673,7 @@
                         <g v-for="(plot, j) in serie.plots" :key="`xLabel_bar_${i}_${j}`">
                             <text
                                 :data-cy="`xy-bar-label-x-${i}-${j}`"
-                                v-if="plot && (!Object.hasOwn(serie, 'dataLabels') || serie.dataLabels === true) && FINAL_CONFIG.bar.labels.show"
+                                v-if="plot && (!Object.hasOwn(serie, 'dataLabels') || ((serie.dataLabels === true || (selectedSerieIndex || selectedMinimapIndex) === j))) && FINAL_CONFIG.bar.labels.show"
                                 :x="mutableConfig.useIndividualScale && mutableConfig.isStacked ? plot.x + slot.line / 2 : calcRectX(plot) + calcRectWidth() / 2 - barPeriodGap / 2"
                                 :y="checkNaN(plot.y) + (plot.value >= 0 ? FINAL_CONFIG.bar.labels.offsetY : - FINAL_CONFIG.bar.labels.offsetY * 3)"
                                 text-anchor="middle"
@@ -717,7 +717,7 @@
                         <g v-for="(plot, j) in serie.plots" :key="`xLabel_plot_${i}_${j}`">
                             <text
                                 :data-cy="`xy-plot-label-x-${i}-${j}`"
-                                v-if="plot && !Object.hasOwn(serie, 'dataLabels') || serie.dataLabels === true"
+                                v-if="plot && !Object.hasOwn(serie, 'dataLabels') || (serie.dataLabels === true || (selectedSerieIndex || selectedMinimapIndex) === j)"
                                 :x="plot.x"
                                 :y="plot.y + FINAL_CONFIG.plot.labels.offsetY"
                                 text-anchor="middle"
@@ -776,7 +776,7 @@
                         <g v-for="(plot, j) in serie.plots" :key="`xLabel_line_${i}_${j}`">
                             <text
                                 :data-cy="`xy-line-label-x-${i}-${j}`"
-                                v-if="plot && !Object.hasOwn(serie, 'dataLabels') || serie.dataLabels === true"
+                                v-if="plot && !Object.hasOwn(serie, 'dataLabels') || (serie.dataLabels === true || (selectedSerieIndex || selectedMinimapIndex) === j)"
                                 :x="plot.x"
                                 :y="plot.y + (plot.value >= 0 ? FINAL_CONFIG.line.labels.offsetY : - FINAL_CONFIG.line.labels.offsetY * 3)"
                                 text-anchor="middle"
@@ -986,20 +986,20 @@
                 </g>
 
                 <!-- TIME TAG -->
-                <g v-if="FINAL_CONFIG.chart.timeTag.show && ![null, undefined].includes(selectedSerieIndex)">
+                <g v-if="FINAL_CONFIG.chart.timeTag.show && (![null, undefined].includes(selectedSerieIndex) || selectedMinimapIndex !== null)">
                     <foreignObject
-                        :x="drawingArea.left + (drawingArea.width / maxSeries) * selectedSerieIndex - 100 + (drawingArea.width / maxSeries / 2)"
+                        :x="drawingArea.left + (drawingArea.width / maxSeries) * (selectedSerieIndex || selectedMinimapIndex) - 100 + (drawingArea.width / maxSeries / 2)"
                         :y="drawingArea.bottom"
                         width="200"
                         height="40"
                         style="overflow: visible !important;"
                     >
                         <div class="vue-ui-xy-time-tag" :style="`width: fit-content;margin: 0 auto;text-align:center;padding:3px 12px;background:${FINAL_CONFIG.chart.timeTag.backgroundColor};color:${FINAL_CONFIG.chart.timeTag.color};font-size:${FINAL_CONFIG.chart.timeTag.fontSize}px`">
-                            {{ timeLabels[selectedSerieIndex] || selectedSerieIndex }}
+                            {{ timeLabels[selectedSerieIndex || selectedMinimapIndex] || (selectedSerieIndex || selectedMinimapIndex) }}
                         </div>
                     </foreignObject>
                     <circle
-                        :cx="drawingArea.left + (drawingArea.width / maxSeries) * selectedSerieIndex + (drawingArea.width / maxSeries / 2)"
+                        :cx="drawingArea.left + (drawingArea.width / maxSeries) * (selectedSerieIndex || selectedMinimapIndex) + (drawingArea.width / maxSeries / 2)"
                         :cy="drawingArea.bottom"
                         :r="FINAL_CONFIG.chart.timeTag.circleMarker.radius"
                         :fill="FINAL_CONFIG.chart.timeTag.circleMarker.color"
@@ -1201,7 +1201,8 @@ import {
     functionReturnsString,
     hasDeepProperty,
     isFunction,
-    isSafeValue, 
+    isSafeValue,
+    largestTriangleThreeBucketsArray,
     opacity, 
     palette,
     setOpacity,
@@ -1272,7 +1273,10 @@ export default {
                 })
             }
         })
-        const maxX = Math.max(...this.dataset.map(datapoint => datapoint.series.length));
+
+        const lttbThreshold = this.config.downsample ? this.config.downsample.threshold ? this.config.downsample.threshold : 500 : 500
+
+        const maxX = Math.max(...this.dataset.map(datapoint => this.largestTriangleThreeBucketsArray({data: datapoint.series, threshold: lttbThreshold}).length));
         const slicer = {
             start: 0,
             end: maxX,
@@ -1347,7 +1351,10 @@ export default {
     watch: {
         dataset: {
             handler(_newDs, _oldDs) {
-                this.maxX = Math.max(...this.dataset.map(datapoint => datapoint.series.length));
+                this.maxX = Math.max(...this.dataset.map(datapoint => this.largestTriangleThreeBucketsArray({
+                    data: datapoint.series,
+                    threshold: this.FINAL_CONFIG.downsample.threshold
+                }).length));
                 this.slicer = {
                     start: 0,
                     end: this.maxX
@@ -1504,16 +1511,25 @@ export default {
             return this.dataset.map((datapoint, i) => {
                 return {
                     ...datapoint,
+                    series: this.largestTriangleThreeBucketsArray({
+                        data: datapoint.series,
+                        threshold: this.FINAL_CONFIG.downsample.threshold
+                    }),
                     id: `uniqueId_${i}`
                 }
             });
         },
         safeDataset(){
             if(!this.useSafeValues) return this.dataset;
+
             return this.dataset.map((datapoint, i) => {
+                const LTTD = this.largestTriangleThreeBucketsArray({
+                    data: datapoint.series,
+                    threshold: this.FINAL_CONFIG.downsample.threshold
+                })
                 return {
                     ...datapoint,
-                    series: datapoint.series.map(d => {
+                    series: LTTD.map(d => {
                         return this.isSafeValue(d) ? d : null
                     }).slice(this.slicer.start, this.slicer.end),
                     color: this.convertColorToHex(datapoint.color ? datapoint.color : this.customPalette[i] ? this.customPalette[i] : this.palette[i]),
@@ -2252,6 +2268,7 @@ export default {
         hasDeepProperty,
         isFunction,
         isSafeValue,
+        largestTriangleThreeBucketsArray,
         objectIsEmpty,
         setOpacity,
         shiftHue,
@@ -2549,7 +2566,7 @@ export default {
         refreshSlicer() {
             this.slicer = {
                 start: 0,
-                end: Math.max(...this.dataset.map(datapoint => datapoint.series.length))
+                end: Math.max(...this.dataset.map(datapoint => this.largestTriangleThreeBucketsArray({data:datapoint.series, threshold: this.FINAL_CONFIG.downsample.threshold}).length))
             }
             this.slicerStep += 1;
         },
