@@ -175,19 +175,17 @@ const svgMinimap = ref({
 const resizeObserver = ref(null);
 
 onMounted(() => {
-    if (hasMinimap.value && minimapWrapper.value) {
+    if (hasMinimap.value) {
         const handleResize = throttle(() => {
-            requestAnimationFrame(() => {
-                const { width, height } = useResponsive({
-                    chart: minimapWrapper.value,
-                });
-                svgMinimap.value.width = width;
-                svgMinimap.value.height = Math.max(0, height - 47);
-            });
+            const { width, height } = useResponsive({
+                chart: minimapWrapper.value,
+            })
+            svgMinimap.value.width = width;
+            svgMinimap.value.height = height - 47;
         });
 
         resizeObserver.value = new ResizeObserver(handleResize);
-        resizeObserver.value.observe(minimapWrapper.value);
+        resizeObserver.value.observe(minimapWrapper.value)
     }
 });
 
