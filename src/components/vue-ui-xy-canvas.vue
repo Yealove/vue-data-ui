@@ -26,6 +26,7 @@ import {
     sanitizeArray,
     setOpacity,
     themePalettes,
+hasDeepProperty,
 } from "../lib";
 import { throttle } from "../canvas-lib";
 import {
@@ -116,8 +117,11 @@ function prepareConfig() {
         userConfig: props.config,
         defaultConfig: DEFAULT_CONFIG
     })
+
+    let finalConfig = {};
+
     if (mergedConfig.theme) {
-        return {
+        finalConfig = {
             ...useNestedProp({
                 userConfig: themes.vue_ui_xy_canvas[mergedConfig.theme] || props.config,
                 defaultConfig: mergedConfig
@@ -125,8 +129,26 @@ function prepareConfig() {
             customPalette: themePalettes[mergedConfig.theme] || palette
         }
     } else {
-        return mergedConfig;
+        finalConfig = mergedConfig;
     }
+
+    // ------------------------------ OVERRIDES -----------------------------------
+
+    if (props.config && hasDeepProperty(props.config, 'style.chart.scale.min')) {
+        finalConfig.style.chart.scale.min = props.config.style.chart.scale.min;
+    } else {
+        finalConfig.style.chart.scale.min = null;
+    }
+
+    if (props.config && hasDeepProperty(props.config, 'style.chart.scale.max')) {
+        finalConfig.style.chart.scale.max = props.config.style.chart.scale.max;
+    } else {
+        finalConfig.style.chart.scale.max = null;
+    }
+
+    // ----------------------------------------------------------------------------
+
+    return finalConfig;
 }
 
 watch(() => props.config, (_newCfg) => {
@@ -136,6 +158,13 @@ watch(() => props.config, (_newCfg) => {
     tableStep.value += 1;
     legendStep.value += 1;
 }, { deep: true });
+
+watch(() => props.dataset, () => {
+    prepareChart();
+    titleStep.value += 1;
+    tableStep.value += 1;
+    legendStep.value += 1;
+}, { deep: true })
 
 const aspectRatio = ref(FINAL_CONFIG.value.style.chart.aspectRatio);
 
@@ -215,8 +244,8 @@ function createDatapointCoordinates({ hasAutoScale, series, min, max, scale, yOf
 }
 
 const absoluteExtremes = computed(() => {
-    const min = Math.min(...dsCopy.value.filter((ds, i) => !segregated.value.includes(ds.absoluteIndex)).flatMap(ds => ds.series.slice(slicer.value.start, slicer.value.end)));
-    const max = Math.max(...dsCopy.value.filter((ds, i) => !segregated.value.includes(ds.absoluteIndex)).flatMap(ds => ds.series.slice(slicer.value.start, slicer.value.end)));
+    const min = FINAL_CONFIG.value.style.chart.scale.min !== null ? FINAL_CONFIG.value.style.chart.scale.min : Math.min(...dsCopy.value.filter((ds, i) => !segregated.value.includes(ds.absoluteIndex)).flatMap(ds => ds.series.slice(slicer.value.start, slicer.value.end)));
+    const max = FINAL_CONFIG.value.style.chart.scale.max !== null ? FINAL_CONFIG.value.style.chart.scale.max : Math.max(...dsCopy.value.filter((ds, i) => !segregated.value.includes(ds.absoluteIndex)).flatMap(ds => ds.series.slice(slicer.value.start, slicer.value.end)));
     const scale = calculateNiceScale(min < 0 ? min : 0, max === min ? min + 1 < 0 ? 0 : min + 1 : max < 0 ? 0 : max, FINAL_CONFIG.value.style.chart.scale.ticks);
 
     const absoluteMin = scale.min < 0 ? Math.abs(scale.min) : 0;
@@ -293,8 +322,8 @@ const formattedDataset = computed(() => {
             }
         })
         .map((ds, i) => {
-            let min = Math.min(...ds.series) || 0;
-            let max = Math.max(...ds.series) || 1;
+            let min = [null, undefined].includes(ds.scaleMin) ? (Math.min(...ds.series) || 0) : ds.scaleMin;
+            let max = [null, undefined].includes(ds.scaleMax) ? (Math.max(...ds.series) || 1) : ds.scaleMax;
 
             if (min === max) {
                 min = min >= 0 ? max - 1 : min;
@@ -433,6 +462,22 @@ function setupChart() {
                     }
                 );
             }
+        } else if(FINAL_CONFIG.value.style.chart.grid.y.verticalLines.show && (slicer.value.end - slicer.value.start) >= FINAL_CONFIG.value.style.chart.grid.y.verticalLines.hideUnderXLength) {
+            for (let i = slicer.value.start; i < slicer.value.end; i += 1) {
+
+                if(i % Math.floor((slicer.value.end - slicer.value.start) / FINAL_CONFIG.value.style.chart.grid.y.timeLabels.modulo) === 0) {
+                    line(
+                        ctx.value,
+                        [
+                            { x: drawingArea.value.left + (drawingArea.value.slot * (i - slicer.value.start)) + (drawingArea.value.slot / 2), y: drawingArea.value.top },
+                            { x: drawingArea.value.left + (drawingArea.value.slot * (i - slicer.value.start)) + (drawingArea.value.slot / 2), y: drawingArea.value.bottom }
+                        ],
+                        {
+                            color: FINAL_CONFIG.value.style.chart.grid.y.verticalLines.color
+                        }
+                    );
+                }
+            }
         }
         // UNSTACKED
 
@@ -547,6 +592,7 @@ function setupChart() {
 
         if (FINAL_CONFIG.value.style.chart.grid.y.verticalLines.show && (slicer.value.end - slicer.value.start) < FINAL_CONFIG.value.style.chart.grid.y.verticalLines.hideUnderXLength) {
             formattedDataset.value.forEach((ds) => {
+                
                 for (let k = 0; k < (slicer.value.end - slicer.value.start) + 1; k += 1) {
                     line(
                         ctx.value,
@@ -564,6 +610,31 @@ function setupChart() {
                             color: FINAL_CONFIG.value.style.chart.grid.y.verticalLines.color
                         }
                     );
+                }
+            });
+        } else if (FINAL_CONFIG.value.style.chart.grid.y.verticalLines.show && (slicer.value.end - slicer.value.start) >= FINAL_CONFIG.value.style.chart.grid.y.verticalLines.hideUnderXLength) {
+            formattedDataset.value.forEach((ds) => {
+                
+                for (let k = slicer.value.start; k < slicer.value.end; k += 1) {
+
+                    if(k % Math.floor((slicer.value.end - slicer.value.start) / FINAL_CONFIG.value.style.chart.grid.y.timeLabels.modulo) === 0) {
+                        line(
+                            ctx.value,
+                            [
+                                { 
+                                    x: drawingArea.value.left + (drawingArea.value.slot * (k - slicer.value.start)) + (drawingArea.value.slot / 2),
+                                    y: drawingArea.value.bottom - ds.yOffset - ds.individualHeight
+                                },
+                                {
+                                    x: drawingArea.value.left + (drawingArea.value.slot * (k - slicer.value.start)) + (drawingArea.value.slot / 2),
+                                    y: drawingArea.value.bottom - ds.yOffset
+                                }
+                            ],
+                            {
+                                color: FINAL_CONFIG.value.style.chart.grid.y.verticalLines.color
+                            }
+                        );
+                    }
                 }
             });
         }
