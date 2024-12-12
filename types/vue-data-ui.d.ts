@@ -530,6 +530,11 @@ declare module 'vue-data-ui' {
             fontSize?: number;
             textAlign?: TextAlign;
             bold?: boolean;
+            showColorMarker?: boolean;
+            selectedColor?: {
+                useSerieColor?: boolean;
+                fallback?: string;
+            };
         };
         userOptions?: ChartUserOptions;
     };

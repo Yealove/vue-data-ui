@@ -3438,12 +3438,17 @@ export function useConfig() {
             bold: false
         },
         tbody: {
+            showColorMarker: true,
             backgroundColor: COLOR_WHITE,
             color: COLOR_BLACK,
             fontSize: FONT._14,
             outline: "none",
             textAlign: POSITION.LEFT,
             bold: false,
+            selectedColor: {
+                useSerieColor: true,
+                fallback: COLOR_GREY_LIGHT,
+            }
         },
         userOptions: USER_OPTIONS({
             pdf: true,
