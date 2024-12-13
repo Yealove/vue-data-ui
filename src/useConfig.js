@@ -3403,6 +3403,10 @@ export function useConfig() {
             strokeWidth: 3,
             type: SHAPE.LINE,
             smooth: true,
+            dimensions: {
+                width: 150,
+                heightRatio: 1
+            },
             animation: {
                 show: true,
                 animationFrames: 360
@@ -4705,6 +4709,7 @@ export function useConfig() {
             },
         },
         tbody: {
+            backgroundColor: COLOR_WHITE,
             tr: {
                 visible: 5,
                 height: 32,
