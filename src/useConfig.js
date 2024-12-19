@@ -206,7 +206,9 @@ export function useConfig() {
         color: COLOR_GREY_MID,
         highlightColor: COLOR_GREY_DARK,
         fontSize: FONT._14,
-        useResetSlot: false
+        useResetSlot: false,
+        startIndex: null,
+        endIndex: null,
     }
 
     const MINIMAP = {
@@ -2443,7 +2445,9 @@ export function useConfig() {
         zoomHighlightColor: COLOR_GREY_DARK,
         zoomFontSize: FONT._14,
         zoomUseResetSlot: false,
-        zoomMinimap: MINIMAP
+        zoomMinimap: MINIMAP,
+        zoomStartIndex: null,
+        zoomEndIndex: null
     }
 
     const vue_ui_age_pyramid = {
@@ -2561,8 +2565,16 @@ export function useConfig() {
                 color: COLOR_BLACK,
                 fontSize: FONT._10
             },
+            weightLabels: {
+                size: 8,
+                show: true,
+                formatter: null,
+                prefix: '',
+                suffix: '',
+                rounding: 0
+            },
             links: {
-                curved: true,
+                curved: false,
                 maxWidth: 3
             },
             circle: {
@@ -2572,7 +2584,8 @@ export function useConfig() {
                 offsetY: 0
             },
             plot: {
-                radius: 2,
+                radius: 3,
+                useSerieColor: true,
                 color: COLOR_BLACK
             },
             title: TITLE

@@ -117,6 +117,8 @@ declare module 'vue-data-ui' {
         fontSize?: number;
         useResetSlot?: boolean;
         minimap?: ZoomMinimap;
+        startIndex?: number | null;
+        endIndex?: number | null;
     }
 
     export type Theme = "" | "zen" | "hack" | "concrete";
@@ -1349,6 +1351,14 @@ declare module 'vue-data-ui' {
                 color?: string;
                 fontSize?: number;
             };
+            weightLabels?: {
+                size?: number;
+                show?: boolean;
+                formatter?: Formatter;
+                prefix?: string;
+                suffix?: string;
+                rounding?: number;
+            };
             links?: {
                 curved?: boolean;
                 maxWidth?: number;
@@ -1361,6 +1371,7 @@ declare module 'vue-data-ui' {
             };
             plot?: {
                 radius?: number;
+                useSerieColor?: boolean;
                 color?: string;
             };
             title?: ChartTitle;
@@ -4457,6 +4468,8 @@ declare module 'vue-data-ui' {
         zoomFontSize?: number;
         zoomUseResetSlot?: boolean;
         zoomMinimap?: ZoomMinimap;
+        zoomStartIndex?: number | null;
+        zoomEndIndex?: number | null;
         userOptionsPosition?: 'right' | 'left';
         userOptionsButtons?: {
             tooltip?: boolean;
