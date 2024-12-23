@@ -335,9 +335,10 @@ function useAnimation(targetValue) {
 
 const arcSizeSource = computed(() => {
     const src = FINAL_CONFIG.value.responsive ? Math.min(svg.value.width, svg.value.height) : svg.value.width;
+    const arcRatio = 2.5 / FINAL_CONFIG.value.style.chart.layout.radiusRatio;
     return {
-        arcs: src / 2.5,
-        gradients: src / 2.75,
+        arcs: src / arcRatio,
+        gradients: src / (arcRatio * 1.1),
         base: FINAL_CONFIG.value.responsive ? svg.value.height / 2 : svg.value.height * 0.7,
         ratingBase: FINAL_CONFIG.value.responsive ? svg.value.height / 2 + (svg.value.height / 4) : svg.value.height * 0.9,
         pointerSize: FINAL_CONFIG.value.responsive ? Math.min(svg.value.width, svg.value.height) / 3 : svg.value.width / 3.2
@@ -378,7 +379,49 @@ const labelArcs = computed(() => {
     return donut;
 });
 
-const pathRadius = computed(() => arcSizeSource.value.arcs * FINAL_CONFIG.value.style.chart.layout.segmentNames.offsetRatio);
+const pathRadii = computed(() => {
+    return arcs.value.map((arc) => {
+        return arcSizeSource.value.arcs * FINAL_CONFIG.value.style.chart.layout.segmentNames.offsetRatio * (arc.nameOffsetRatio || 1);
+    });
+});
+
+const firstSeparator = computed(() => {
+    const { x: x1, y: y1 } = offsetFromCenterPoint({
+        initX: arcs.value[0].firstSeparator.x,
+        initY: arcs.value[0].firstSeparator.y,
+        centerX: pointer.value.x1,
+        centerY: pointer.value.y1,
+        offset: -FINAL_CONFIG.value.style.chart.layout.segmentSeparators.offsetIn
+    });
+    const { x: x2, y: y2 } = offsetFromCenterPoint({
+        initX: arcs.value[0].startX,
+        initY: arcs.value[0].startY,
+        centerX: pointer.value.x1,
+        centerY: pointer.value.y1,
+        offset: FINAL_CONFIG.value.style.chart.layout.segmentSeparators.offsetOut
+    });
+    return { x1, y1, x2, y2 };
+})
+
+const segmentSeparators = computed(() => {
+    return arcs.value.map(arc => {
+        const { x: x1, y: y1 } = offsetFromCenterPoint({
+            initX: arc.separator.x,
+            initY: arc.separator.y,
+            centerX: pointer.value.x1,
+            centerY: pointer.value.y1,
+            offset: -FINAL_CONFIG.value.style.chart.layout.segmentSeparators.offsetIn
+        });
+        const { x: x2, y: y2 } = offsetFromCenterPoint({
+            initX: arc.endX,
+            initY: arc.endY,
+            centerX: pointer.value.x1,
+            centerY: pointer.value.y1,
+            offset: FINAL_CONFIG.value.style.chart.layout.segmentSeparators.offsetOut
+        })
+        return { x1, y1, x2, y2 };
+    })
+})
 
 function calculateCumulativeHalfCircleOffsets(percentages) {
     const totalPercentage = percentages.reduce((sum, val) => sum + val, 0);
@@ -548,8 +591,9 @@ defineExpose({
             <template v-if="FINAL_CONFIG.style.chart.layout.segmentNames.show && FINAL_CONFIG.style.chart.layout.segmentNames.curved">            
                 <!-- CIRCLE PATH AS BASE FOR CURVED LABELS -->
                 <path
-                    :id="`curve_${uid}`"
-                    :d="`M ${pointer.x1},${pointer.y1} m -${pathRadius},0 a ${pathRadius},${pathRadius} 0 1,1 ${2 * pathRadius},0 a ${pathRadius},${pathRadius} 0 1,1 -${2 * pathRadius},0`" fill="transparent"
+                    v-for="(arc, i) in arcs"
+                    :id="`curve_${uid}_${i}`"
+                    :d="`M ${pointer.x1},${pointer.y1} m -${pathRadii[i]},0 a ${pathRadii[i]},${pathRadii[i]} 0 1,1 ${2 * pathRadii[i]},0 a ${pathRadii[i]},${pathRadii[i]} 0 1,1 -${2 * pathRadii[i]},0`" fill="transparent"
                 />
     
                 <!-- CURVED LABELS -->
@@ -560,7 +604,7 @@ defineExpose({
                     :font-weight="FINAL_CONFIG.style.chart.layout.segmentNames.bold ? 'bold' : 'normal'"
                     text-anchor="middle"
                 >
-                    <textPath :href="`#curve_${uid}`" :startOffset="curveLabelOffsets[i]">
+                    <textPath :href="`#curve_${uid}_${i}`" :startOffset="curveLabelOffsets[i]">
                         {{ arc.name || '' }}
                     </textPath>
                 </text>
@@ -595,26 +639,55 @@ defineExpose({
                 />
             </template>
 
+            <template v-if="FINAL_CONFIG.style.chart.layout.segmentSeparators.show">
+                <line
+                    v-bind="firstSeparator"
+                    :stroke="FINAL_CONFIG.style.chart.backgroundColor"
+                    :stroke-width="FINAL_CONFIG.style.chart.layout.segmentSeparators.strokeWidth + 2"
+                    stroke-linecap="round"
+                />
+                <line
+                    v-bind="firstSeparator"
+                    :stroke="FINAL_CONFIG.style.chart.layout.segmentSeparators.stroke"
+                    :stroke-width="FINAL_CONFIG.style.chart.layout.segmentSeparators.strokeWidth"
+                    stroke-linecap="round"
+                />
+                <line
+                    v-for="segmentSeparator in segmentSeparators"
+                    v-bind="segmentSeparator"
+                    :stroke="FINAL_CONFIG.style.chart.backgroundColor"
+                    :stroke-width="FINAL_CONFIG.style.chart.layout.segmentSeparators.strokeWidth + 2"
+                    stroke-linecap="round"
+                />
+                <line
+                    v-for="segmentSeparator in segmentSeparators"
+                    v-bind="segmentSeparator"
+                    :stroke="FINAL_CONFIG.style.chart.layout.segmentSeparators.stroke"
+                    :stroke-width="FINAL_CONFIG.style.chart.layout.segmentSeparators.strokeWidth"
+                    stroke-linecap="round"
+                />
+            </template>
+
             <!-- STEP MARKERS -->
             <g v-if="FINAL_CONFIG.style.chart.layout.markers.show">
                 <text
                     v-for="(arc, i) in arcs"
                     :data-cy="`gauge-step-marker-label-${i}`"
                     :x="offsetFromCenterPoint({
-                        centerX: svg.width / 2,
+                        centerX: pointer.x1,
                         centerY: arcSizeSource.base,
                         initX: arc.center.startX,
                         initY: arc.center.startY,
                         offset: svg.markerOffset
                     }).x"
                     :y="offsetFromCenterPoint({
-                        centerX: svg.width / 2,
+                        centerX: pointer.x1,
                         centerY: arcSizeSource.base,
                         initX: arc.center.startX,
                         initY: arc.center.startY,
                         offset: svg.markerOffset
                     }).y"
-                    :text-anchor="arc.center.startX < (svg.width / 2 - 5) ? 'end' : arc.center.startX > (svg.width / 2 + 5) ? 'start' : 'middle'"
+                    :text-anchor="arc.center.startX < (pointer.x1 - 5) ? 'end' : arc.center.startX > (pointer.x1 + 5) ? 'start' : 'middle'"
                     :font-size="svg.labelFontSize * FINAL_CONFIG.style.chart.layout.markers.fontSizeRatio"
                     :font-weight="`${FINAL_CONFIG.style.chart.layout.markers.bold ? 'bold' : 'normal'}`"
                     :fill="FINAL_CONFIG.style.chart.layout.markers.color"

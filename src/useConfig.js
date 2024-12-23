@@ -1120,6 +1120,7 @@ export function useConfig() {
                     acceleration: 1
                 },
                 layout: {
+                    radiusRatio: 1,
                     track: {
                         size: 1,
                         useGradient: true,
@@ -1135,6 +1136,13 @@ export function useConfig() {
                         formatter: null,
                         prefix: '',
                         suffix: '',
+                    },
+                    segmentSeparators: {
+                        show: false,
+                        offsetOut: 0,
+                        offsetIn: 0,
+                        stroke: COLOR_BLACK,
+                        strokeWidth: 2
                     },
                     segmentNames: {
                         show: true,

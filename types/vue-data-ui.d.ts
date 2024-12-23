@@ -3131,6 +3131,7 @@ declare module 'vue-data-ui' {
         to: number;
         color?: string;
         name?: string;
+        nameOffsetRatio?: number;
     };
 
     export type VueUiGaugeDataset = {
@@ -3155,6 +3156,7 @@ declare module 'vue-data-ui' {
                     acceleration?: number;
                 };
                 layout?: {
+                    radiusRatio?: number;
                     track?: {
                         size?: number;
                         useGradient?: boolean;
@@ -3170,6 +3172,13 @@ declare module 'vue-data-ui' {
                         formatter?: Formatter;
                         prefix?: string;
                         suffix?: string;
+                    };
+                    segmentSeparators?: {
+                        show?: boolean;
+                        offsetOut?: number;
+                        offsetIn?: number;
+                        stroke?: string;
+                        strokeWidth?: number;
                     };
                     segmentNames?: {
                         show?: boolean;
