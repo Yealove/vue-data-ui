@@ -146,13 +146,15 @@ const computedDataset = computed(() => {
     return props.dataset.map((ds, i) => {
         const cleanValues = (ds.values || []).map((v) => (isNaN(v) ? 0 : v ?? 0));
         const sum = cleanValues.reduce((a, b) => a + b, 0);
+        const average = sum / cleanValues.length;
+        const median = calcMedian(cleanValues);
         return {
             ...ds,
             values: ds.values || [],
             color: convertColorToHex(ds.color) || customPalette.value[i] || palette[i] || palette[i % palette.length],
             sum,
-            average: sum / cleanValues.length,
-            median: calcMedian(cleanValues),
+            average,
+            median,
             sparklineDataset: cleanValues.map((v, i) => {
                 return {
                     period: FINAL_CONFIG.value.colNames[i] || `col ${i}`,
@@ -202,14 +204,35 @@ const currentSortOrder = ref(-1);
 function restoreOrder() {
     isSorting.value = false;
     currentSortingIndex.value = undefined;
+    currentAdditionalSort.value = undefined;
     currentSortOrder.value = -1;
     mutableDataset.value = datasetWithOrders.value;
 }
 
-function orderDatasetByIndex(index) {
+function orderDatasetByIndex(th, index) {
+
+    if ((['name', 'sum', 'average', 'median'].includes(th.type))) {
+        orderDatasetByAttribute(th.type);
+        return;
+    }
+
+    if (!hasSorting(index)) return;
+
+    selectedDataIndex.value = index;
+    currentAdditionalSort.value = undefined;
+
+    if (currentSortOrder.value === 1) {
+        currentSortOrder.value = -1;
+        currentSortingIndex.value = undefined;
+        restoreOrder();
+        return;
+    }
+
     isSorting.value = true;
     currentSortingIndex.value = index;
+
     const combinedValues = datasetWithOrders.value.map(series => (series.values[index] || []));
+
     const sortOrder = sortIndex.value === index ? 1 : -1;
     currentSortOrder.value = sortOrder;
     if(index === sortIndex.value) {
@@ -234,38 +257,88 @@ const maxSeriesLength = computed(() => {
 })
 
 const colNames = computed(() => {
-    let cn = usableColNames.value;
+    let cn = usableColNames.value.map(c => {
+        return {
+            type: 'reg',
+            value: c
+        }
+    });
 
     if(!cn.length) {
         for(let i = 0; i < maxSeriesLength.value; i += 1) {
-            cn.push(`col ${i+1}`)
+            cn.push({type: 'reg', value: `col ${i+1}`})
         }
     }
 
     if (FINAL_CONFIG.value.showTotal) {
-        cn = [...cn, FINAL_CONFIG.value.translations.total];
+        cn = [...cn, { type: 'sum', value: FINAL_CONFIG.value.translations.total}];
     }
 
     let res;
     if (FINAL_CONFIG.value.showAverage && FINAL_CONFIG.value.showMedian) {
         res = [
             ...cn,
-            FINAL_CONFIG.value.translations.average,
-            FINAL_CONFIG.value.translations.median,
+            { type: 'average', value: FINAL_CONFIG.value.translations.average},
+            { type: 'median', value: FINAL_CONFIG.value.translations.median}
         ];
     } else if (FINAL_CONFIG.value.showAverage && !FINAL_CONFIG.value.showMedian) {
-        res = [...cn, FINAL_CONFIG.value.translations.average];
+        res = [...cn, { type: 'average', value: FINAL_CONFIG.value.translations.average}];
     } else if (!FINAL_CONFIG.value.showAverage && FINAL_CONFIG.value.showMedian) {
-        res = [...cn, FINAL_CONFIG.value.translations.median];
+        res = [...cn, { type: 'median', value: FINAL_CONFIG.value.translations.median}];
     } else {
         res = cn;
     }
     if (FINAL_CONFIG.value.showSparklines) {
-        return [...res, FINAL_CONFIG.value.translations.chart];
+        return [...res, { type: 'chart', value: FINAL_CONFIG.value.translations.chart}];
     } else {
         return res;
     }
 });
+
+const sortOrders = ref({
+    name: -1,
+    sum: -1,
+    average: -1,
+    median: -1
+})
+
+const currentAdditionalSort = ref(undefined);
+
+function orderDatasetByAttribute(attribute) {
+    if (!mutableDataset.value || mutableDataset.value.length === 0) return;
+    if (!hasAdditionalSorting(attribute)) return;
+
+    if (currentAdditionalSort.value !== attribute) {
+        currentAdditionalSort.value = undefined;
+    }
+
+    currentSortingIndex.value = undefined;
+
+    if (sortOrders.value[attribute] === -1 && currentAdditionalSort.value) {
+        currentAdditionalSort.value = undefined;
+        restoreOrder();
+        return;
+    }
+    
+    currentAdditionalSort.value = attribute;
+    isSorting.value = true;
+
+    sortOrders.value[attribute] = sortOrders.value[attribute] === -1 ? 1 : -1;
+    const sortOrder = sortOrders.value[attribute];
+
+    const sortedDataset = [...mutableDataset.value].sort((a, b) => {
+        const aValue = a[attribute] ?? (typeof a[attribute] === 'number' ? 0 : '');
+        const bValue = b[attribute] ?? (typeof b[attribute] === 'number' ? 0 : '');
+
+        if (typeof aValue === 'string' && typeof bValue === 'string') {
+            return sortOrder === -1 ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+        } else if (typeof aValue === 'number' && typeof bValue === 'number') {
+            return sortOrder === -1 ? aValue - bValue : bValue - aValue;
+        }
+        return 0;
+    });
+    mutableDataset.value = sortedDataset;
+}
 
 const selectedDataIndex = ref(undefined);
 const selectedSerieIndex = ref(undefined);
@@ -303,6 +376,38 @@ function generateCsv() {
             title: FINAL_CONFIG.value.title.text || "vue-ui-table-sparkline"
         })
     })
+}
+
+function hasSorting(index) {
+    return FINAL_CONFIG.value.sortedDataColumnIndices.includes(index);
+}
+
+function hasAdditionalSorting(th) {
+    if (th.type === 'name' || th === 'name') {
+        return FINAL_CONFIG.value.sortedSeriesName;
+    }
+    if (th.type === 'sum' || th === 'sum') {
+        return FINAL_CONFIG.value.sortedSum;
+    }
+    if (th.type === 'average' || th === 'average') {
+        return FINAL_CONFIG.value.sortedAverage;
+    }
+    if (th.type === 'median' || th === 'median') {
+        return FINAL_CONFIG.value.sortedMedian;
+    }
+    return false;
+}
+
+function getArrowOpacity(index, th) {
+    if (['sum', 'average', 'median'].includes(th.type)) {
+        return currentAdditionalSort.value === th.type ? 1 : 0.3;
+    } else {
+        return index === currentSortingIndex.value ? 1 : 0.3;
+    }
+}
+
+function resetOnClickOutside() {
+    FINAL_CONFIG.value.resetSortOnClickOutside && restoreOrder();
 }
 
 defineExpose({
@@ -343,7 +448,7 @@ defineExpose({
                     <tr 
                         role="row" 
                         class="vue-ui-data-table__thead-row"                         
-                        v-click-outside="restoreOrder" 
+                        v-click-outside="resetOnClickOutside" 
                         :style="{
                             backgroundColor: FINAL_CONFIG.thead.backgroundColor,
                             color: FINAL_CONFIG.thead.color
@@ -354,8 +459,27 @@ defineExpose({
                             border: FINAL_CONFIG.thead.outline,
                             textAlign: FINAL_CONFIG.thead.textAlign,
                             fontWeight: FINAL_CONFIG.thead.bold ? 'bold' : 'normal',
-                        }" class="sticky-col-first">
-                            {{ FINAL_CONFIG.translations.serie }}
+                            cursor: FINAL_CONFIG.sortedSeriesName ? 'pointer' : 'default'
+                        }" class="sticky-col-first" @click="orderDatasetByIndex({type: 'name'}, null)">
+                            <div
+                                :style="{
+                                    display: 'flex', 
+                                    flexDirection: 'row',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    justifyContent: FINAL_CONFIG.thead.textAlign
+                                }">
+                                <span>{{ FINAL_CONFIG.translations.serie }}</span>
+                                <BaseIcon 
+                                    :size="18" 
+                                    v-if="FINAL_CONFIG.sortedSeriesName" 
+                                    :name="'sort'" 
+                                    :stroke="FINAL_CONFIG.thead.color"
+                                    :style="{
+                                        opacity: currentAdditionalSort === 'name' ? 1 : 0.3
+                                    }"
+                                />
+                            </div>
                         </th>
                         <th role="cell" v-for="(th, i) in colNames" :style="{
                             background: FINAL_CONFIG.thead.backgroundColor,
@@ -363,9 +487,9 @@ defineExpose({
                             textAlign: FINAL_CONFIG.thead.textAlign,
                             fontWeight: FINAL_CONFIG.thead.bold ? 'bold' : 'normal',
                             minWidth: i === colNames.length - 1 ? `${FINAL_CONFIG.sparkline.dimensions.width}px` : '48px',
-                            cursor: datasetWithOrders[0].values[i] !== undefined ? 'pointer' : 'default',
+                            cursor: hasSorting(i) || hasAdditionalSorting(th) ? 'pointer' : 'default',
                             paddingRight: i === colNames.length - 1 && FINAL_CONFIG.userOptions.show ? '36px' : '',
-                        }" @click="() => orderDatasetByIndex(i)" :class="{'sticky-col': i === colNames.length - 1 && FINAL_CONFIG.showSparklines}" 
+                        }" @click="() => orderDatasetByIndex(th, i)" :class="{'sticky-col': i === colNames.length - 1 && FINAL_CONFIG.showSparklines}" 
                         >
                             <div
                                 :style="{
@@ -375,8 +499,17 @@ defineExpose({
                                     gap: '6px',
                                     justifyContent: FINAL_CONFIG.thead.textAlign
                                 }">
-                                <span>{{ th }}</span>
-                                <BaseIcon :size="18" v-if="isSorting && i === currentSortingIndex && datasetWithOrders[0].values[i] !== undefined" :name="currentSortOrder === 1 ? 'sort' : 'sortReverse'" :stroke="FINAL_CONFIG.thead.color"/>
+                                <span>{{ th.value }}</span>
+                                
+                                <BaseIcon 
+                                    :size="18" 
+                                    v-if="hasSorting(i) || hasAdditionalSorting(th)" 
+                                    :name="'sort'" 
+                                    :stroke="FINAL_CONFIG.thead.color"
+                                    :style="{
+                                        opacity: getArrowOpacity(i, th)
+                                    }"
+                                />
                             </div>
                             <UserOptions
                                 ref="details"
@@ -449,13 +582,6 @@ defineExpose({
                                 selectedDataIndex !== undefined &&
                                     j === selectedDataIndex 
                                     ? FINAL_CONFIG.tbody.selectedColor.useSerieColor ? `${tr.color.length > 7 ? tr.color.slice(0,-2) : tr.color }33` : FINAL_CONFIG.tbody.selectedColor.fallback
-                                    : '',
-                            borderRadius:
-                                selectedDataIndex !== undefined &&
-                                    selectedSerieIndex !== undefined &&
-                                    j === selectedDataIndex &&
-                                    selectedSerieIndex === i
-                                    ? '3px'
                                     : '',
                         }" :data-cell="colNames[j]" class="vue-ui-data-table__tbody__td" @pointerenter="selectedSerieIndex = i; selectedDataIndex = j">
                             {{ [null, undefined].includes(tr.values[j]) ? '-' : applyDataLabel(
@@ -536,7 +662,6 @@ defineExpose({
                             padding: '0',
                         }" class="vue-ui-data-table__tbody__td sticky-col">
                             <SparkLine 
-                                :key="`sparkline_${i}_${sparkStep}`" 
                                 @hoverIndex="({ index }) => hoverSparkline({ dataIndex: index, serieIndex: i })
                                 "
                                 :height-ratio="FINAL_CONFIG.sparkline.dimensions.heightRatio"
