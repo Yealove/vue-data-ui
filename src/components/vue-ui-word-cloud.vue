@@ -27,6 +27,7 @@ import { useConfig } from '../useConfig';
 import PackageVersion from '../atoms/PackageVersion.vue';
 import Tooltip from '../atoms/Tooltip.vue';
 import PenAndPaper from '../atoms/PenAndPaper.vue';
+import { useUserOptionState } from '../useUserOptionState';
 
 const { vue_ui_word_cloud: DEFAULT_CONFIG } = useConfig();
 
@@ -79,6 +80,8 @@ const FINAL_CONFIG = computed({
     }
 });
 
+const { userOptionsVisible, setUserOptionsVisibility, keepUserOptionState } = useUserOptionState({ config: FINAL_CONFIG.value });
+
 function prepareConfig() {
     const mergedConfig = useNestedProp({
         userConfig: props.config,
@@ -99,6 +102,7 @@ function prepareConfig() {
 
 watch(() => props.config, (_newCfg) => {
     FINAL_CONFIG.value = prepareConfig();
+    userOptionsVisible.value = !FINAL_CONFIG.value.showOnChartHover;
     prepareChart();
     titleStep.value += 1;
     tableStep.value += 1;
@@ -419,7 +423,7 @@ function useTooltip(word) {
 
 <template>
     <div class="vue-ui-word-cloud" ref="wordCloudChart" :id="`wordCloud_${uid}`"
-        :style="`width: 100%; font-family:${FINAL_CONFIG.style.fontFamily};background:${FINAL_CONFIG.style.chart.backgroundColor};${FINAL_CONFIG.responsive ? 'height:100%' : ''}`">
+        :style="`width: 100%; font-family:${FINAL_CONFIG.style.fontFamily};background:${FINAL_CONFIG.style.chart.backgroundColor};${FINAL_CONFIG.responsive ? 'height:100%' : ''}`" @mouseenter="() => setUserOptionsVisibility(true)" @mouseleave="() => setUserOptionsVisibility(false)">
         <PenAndPaper
             v-if="FINAL_CONFIG.userOptions.buttons.annotator"
             :parent="wordCloudChart"
@@ -445,7 +449,7 @@ function useTooltip(word) {
         <UserOptions 
             ref="details" 
             :key="`user_option_${step}`" 
-            v-if="FINAL_CONFIG.userOptions.show && isDataset"
+            v-if="FINAL_CONFIG.userOptions.show && isDataset && (keepUserOptionState ? true : userOptionsVisible)"
             :backgroundColor="FINAL_CONFIG.style.chart.backgroundColor" 
             :color="FINAL_CONFIG.style.chart.color"
             :isPrinting="isPrinting" 
@@ -471,6 +475,9 @@ function useTooltip(word) {
             @toggleTable="toggleTable"
             @toggleTooltip="toggleTooltip"
             @toggleAnnotator="toggleAnnotator"
+            :style="{
+                visibility: keepUserOptionState ? userOptionsVisible ? 'visible' : 'hidden' : 'visible'
+            }"
         >
             <template #optionPdf v-if="$slots.optionPdf">
                 <slot name="optionPdf" />

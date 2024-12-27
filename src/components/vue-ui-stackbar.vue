@@ -39,6 +39,7 @@ import DataTable from "../atoms/DataTable.vue";
 import Skeleton from "./vue-ui-skeleton.vue"
 import PackageVersion from "../atoms/PackageVersion.vue";
 import PenAndPaper from "../atoms/PenAndPaper.vue";
+import { useUserOptionState } from "../useUserOptionState";
 
 const { vue_ui_stackbar: DEFAULT_CONFIG } = useConfig()
 
@@ -101,6 +102,8 @@ const FINAL_CONFIG = computed({
     }
 });
 
+const { userOptionsVisible, setUserOptionsVisibility, keepUserOptionState } = useUserOptionState({ config: FINAL_CONFIG.value });
+
 function prepareConfig() {
     const mergedConfig = useNestedProp({
         userConfig: props.config,
@@ -152,6 +155,7 @@ function prepareConfig() {
 
 watch(() => props.config, (_newCfg) => {
     FINAL_CONFIG.value = prepareConfig();
+    userOptionsVisible.value = !FINAL_CONFIG.value.showOnChartHover;
     prepareChart();
     titleStep.value += 1;
     tableStep.value += 1;
@@ -815,6 +819,8 @@ defineExpose({
         ref="stackbarChart"
         :class="{'vue-ui-stackbar': true, 'vue-data-ui-wrapper-fullscreen' : isFullscreen }" 
         :style="`background:${FINAL_CONFIG.style.chart.backgroundColor};color:${FINAL_CONFIG.style.chart.color};font-family:${FINAL_CONFIG.style.fontFamily}; position: relative; ${FINAL_CONFIG.responsive ? 'height: 100%' : ''}`"
+        @mouseenter="() => setUserOptionsVisibility(true)" 
+        @mouseleave="() => setUserOptionsVisibility(false)"
     >
         <PenAndPaper 
             v-if="FINAL_CONFIG.userOptions.buttons.annotator"
@@ -844,7 +850,7 @@ defineExpose({
         <UserOptions
             ref="details"
             :key="`user_option_${step}`"
-            v-if="FINAL_CONFIG.userOptions.show && isDataset"
+            v-if="FINAL_CONFIG.userOptions.show && isDataset && (keepUserOptionState ? true : userOptionsVisible)"
             :backgroundColor="FINAL_CONFIG.style.chart.backgroundColor"
             :color="FINAL_CONFIG.style.chart.color"
             :isPrinting="isPrinting"
@@ -872,6 +878,9 @@ defineExpose({
             @toggleLabels="toggleLabels"
             @toggleTooltip="toggleTooltip"
             @toggleAnnotator="toggleAnnotator"
+            :style="{
+                visibility: keepUserOptionState ? userOptionsVisible ? 'visible' : 'hidden' : 'visible'
+            }"
         >
             <template #optionTooltip v-if="$slots.optionTooltip">
                 <slot name="optionTooltip"/>

@@ -21,7 +21,7 @@ import {
     objectIsEmpty, 
     palette, 
     themePalettes,
-translateSize,
+    translateSize,
 } from "../lib";
 import { useNestedProp } from "../useNestedProp";
 import themes from "../themes.json";
@@ -37,6 +37,7 @@ import PenAndPaper from "../atoms/PenAndPaper.vue";
 import Skeleton from "./vue-ui-skeleton.vue";
 import { throttle } from "../canvas-lib";
 import { useResponsive } from "../useResponsive";
+import { useUserOptionState } from "../useUserOptionState";
 
 const { vue_ui_history_plot: DEFAULT_CONFIG } = useConfig();
 
@@ -185,8 +186,6 @@ function prepareChart() {
         resizeObserver.value = new ResizeObserver(handleResize);
         resizeObserver.value.observe(historyPlotChart.value.parentNode);
     }
-
-    // TODO: responsive
 }
 
 function prepareConfig() {
@@ -246,8 +245,11 @@ const FINAL_CONFIG = computed({
     }
 });
 
+const { userOptionsVisible, setUserOptionsVisibility, keepUserOptionState } = useUserOptionState({ config: FINAL_CONFIG.value });
+
 watch(() => props.config, (_newCfg) => {
     FINAL_CONFIG.value = prepareConfig();
+    userOptionsVisible.value = !FINAL_CONFIG.value.showOnChartHover;
     prepareChart();
     titleStep.value += 1;
     tableStep.value += 1;
@@ -669,6 +671,8 @@ defineExpose({
         ref="historyPlotChart"
         :class="{'vue-ui-history-plot': true, 'vue-data-ui-wrapper-fullscreen' : isFullscreen }" 
         :style="`background:${FINAL_CONFIG.style.chart.backgroundColor};color:${FINAL_CONFIG.style.chart.color};font-family:${FINAL_CONFIG.style.fontFamily}; position: relative; ${FINAL_CONFIG.responsive ? 'height: 100%' : ''}`"
+        @mouseenter="() => setUserOptionsVisibility(true)" 
+        @mouseleave="() => setUserOptionsVisibility(false)"
     >
         
         <slot name="userConfig"/>
@@ -708,7 +712,7 @@ defineExpose({
         <UserOptions
             ref="details"
             :key="`user_option_${step}`"
-            v-if="FINAL_CONFIG.userOptions.show && isDataset"
+            v-if="FINAL_CONFIG.userOptions.show && isDataset && (keepUserOptionState ? true : userOptionsVisible)"
             :backgroundColor="FINAL_CONFIG.style.chart.backgroundColor"
             :color="FINAL_CONFIG.style.chart.color"
             :isPrinting="isPrinting"
@@ -735,6 +739,9 @@ defineExpose({
             @toggleTable="toggleTable"
             @toggleTooltip="toggleTooltip"
             @toggleAnnotator="toggleAnnotator"
+            :style="{
+                visibility: keepUserOptionState ? userOptionsVisible ? 'visible' : 'hidden' : 'visible'
+            }"
         >
             <template #optionTooltip v-if="$slots.optionTooltip">
                 <slot name="optionTooltip"/>

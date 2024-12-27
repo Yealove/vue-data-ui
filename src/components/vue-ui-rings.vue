@@ -36,6 +36,7 @@ import { useResponsive } from "../useResponsive";
 import { useConfig } from "../useConfig";
 import PackageVersion from "../atoms/PackageVersion.vue";
 import PenAndPaper from "../atoms/PenAndPaper.vue";
+import { useUserOptionState } from "../useUserOptionState";
 
 const { vue_ui_rings: DEFAULT_CONFIG } = useConfig();
 
@@ -84,6 +85,8 @@ const FINAL_CONFIG = computed({
     }
 });
 
+const { userOptionsVisible, setUserOptionsVisibility, keepUserOptionState } = useUserOptionState({ config: FINAL_CONFIG.value });
+
 function prepareConfig() {
   const mergedConfig = useNestedProp({
         userConfig: props.config,
@@ -104,6 +107,7 @@ function prepareConfig() {
 
 watch(() => props.config, (_newCfg) => {
     FINAL_CONFIG.value = prepareConfig();
+    userOptionsVisible.value = !FINAL_CONFIG.value.showOnChartHover;
     prepareChart();
     titleStep.value += 1;
     tableStep.value += 1;
@@ -496,7 +500,9 @@ defineExpose({
     @mouseleave="
       selectedSerie = null;
       isTooltip = false;
+      setUserOptionsVisibility(false)
     "
+    @mouseenter="() => setUserOptionsVisibility(true)"
   >
     <PenAndPaper
       v-if="FINAL_CONFIG.userOptions.buttons.annotator"
@@ -538,7 +544,7 @@ defineExpose({
     <UserOptions
         ref="details"
         :key="`user_options_${step}`"
-        v-if="FINAL_CONFIG.userOptions.show && isDataset"
+        v-if="FINAL_CONFIG.userOptions.show && isDataset && (keepUserOptionState ? true : userOptionsVisible)"
         :backgroundColor="FINAL_CONFIG.style.chart.backgroundColor"
         :color="FINAL_CONFIG.style.chart.color"
         :isPrinting="isPrinting"
@@ -564,6 +570,9 @@ defineExpose({
         @toggleTable="toggleTable"
         @toggleTooltip="toggleTooltip"
         @toggleAnnotator="toggleAnnotator"
+        :style="{
+            visibility: keepUserOptionState ? userOptionsVisible ? 'visible' : 'hidden' : 'visible'
+        }"
       >
         <template #optionTooltip v-if="$slots.optionTooltip">
             <slot name="optionTooltip"/>

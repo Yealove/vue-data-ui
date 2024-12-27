@@ -39,6 +39,7 @@ import { useResponsive } from "../useResponsive";
 import { useConfig } from "../useConfig";
 import PackageVersion from "../atoms/PackageVersion.vue";
 import PenAndPaper from "../atoms/PenAndPaper.vue";
+import { useUserOptionState } from "../useUserOptionState";
 
 const { vue_ui_donut: DEFAULT_CONFIG } = useConfig()
 
@@ -160,8 +161,11 @@ const FINAL_CONFIG = computed({
     }
 });
 
+const { userOptionsVisible, setUserOptionsVisibility, keepUserOptionState } = useUserOptionState({ config: FINAL_CONFIG.value });
+
 watch(() => props.config, (_newCfg) => {
     FINAL_CONFIG.value = prepareConfig();
+    userOptionsVisible.value = !FINAL_CONFIG.value.showOnChartHover;
     prepareChart();
     titleStep.value += 1;
     tableStep.value += 1;
@@ -240,6 +244,7 @@ function segregate(index) {
     const target = immutableSet.value.find((_, idx) => idx === index)
     const source = mutableSet.value.find((_, idx) => idx === index)
     let initVal = source.value;
+    let incr = 1;
     if(segregated.value.includes(index)) {
         segregated.value = segregated.value.filter(s => s !== index);
         const targetVal = target.value;
@@ -276,7 +281,7 @@ function segregate(index) {
         animUp()
     } else if (segregated.value.length < immutableSet.value.length - 1) {
         function animDown() {
-            if(initVal < 0.1) {
+            if(initVal < source.value / 100) {
                 cancelAnimationFrame(rafDown.value);
                 segregated.value.push(index);
                 mutableSet.value = mutableSet.value.map((ds, i) => {
@@ -292,7 +297,8 @@ function segregate(index) {
                 isAnimating.value = false;
             } else {
                 isAnimating.value = true;
-                initVal /= 1.1;
+                initVal /= (1.1 * incr);
+                incr += 0.01;
                 mutableSet.value = mutableSet.value.map((ds, i) => {
                     if(index === i) {
                         return {
@@ -654,7 +660,7 @@ defineExpose({
 </script>
 
 <template>
-    <div ref="donutChart" :class="`vue-ui-donut ${isFullscreen ? 'vue-data-ui-wrapper-fullscreen' : ''} ${FINAL_CONFIG.useCssAnimation ? '' : 'vue-ui-dna'}`" :style="`font-family:${FINAL_CONFIG.style.fontFamily};width:100%; ${FINAL_CONFIG.responsive ? 'height:100%;' : ''} text-align:center;background:${FINAL_CONFIG.style.chart.backgroundColor}`" :id="`donut__${uid}`">
+    <div ref="donutChart" :class="`vue-ui-donut ${isFullscreen ? 'vue-data-ui-wrapper-fullscreen' : ''} ${FINAL_CONFIG.useCssAnimation ? '' : 'vue-ui-dna'}`" :style="`font-family:${FINAL_CONFIG.style.fontFamily};width:100%; ${FINAL_CONFIG.responsive ? 'height:100%;' : ''} text-align:center;background:${FINAL_CONFIG.style.chart.backgroundColor}`" :id="`donut__${uid}`" @mouseenter="() => setUserOptionsVisibility(true)" @mouseleave="() => setUserOptionsVisibility(false)">
         <PenAndPaper 
             v-if="FINAL_CONFIG.userOptions.buttons.annotator"
             :parent="donutChart"
@@ -693,7 +699,7 @@ defineExpose({
         <UserOptions
             ref="details"
             :key="`user_option_${step}`"
-            v-if="FINAL_CONFIG.userOptions.show && isDataset"
+            v-if="FINAL_CONFIG.userOptions.show && isDataset && (keepUserOptionState ? true : userOptionsVisible)"
             :backgroundColor="FINAL_CONFIG.style.chart.backgroundColor"
             :color="FINAL_CONFIG.style.chart.color"
             :isPrinting="isPrinting"
@@ -721,6 +727,9 @@ defineExpose({
             @toggleLabels="toggleLabels"
             @toggleTooltip="toggleTooltip"
             @toggleAnnotator="toggleAnnotator"
+            :style="{
+                visibility: keepUserOptionState ? userOptionsVisible ? 'visible' : 'hidden' : 'visible'
+            }"
         >
             <template #optionTooltip v-if="$slots.optionTooltip">
                 <slot name="optionTooltip"/>
