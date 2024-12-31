@@ -757,6 +757,20 @@ defineExpose({
 
         <svg :xmlns="XMLNS" v-if="isDataset" :class="{ 'vue-data-ui-fullscreen--on': isFullscreen, 'vue-data-ui-fulscreen--off': !isFullscreen }" data-cy="donut-svg" :viewBox="`0 0 ${svg.width <= 0 ? 10 : svg.width} ${svg.height <= 0 ? 10 : svg.height}`" :style="`max-width:100%; overflow: visible; background:transparent;color:${FINAL_CONFIG.style.chart.color}`">
             <PackageVersion/>
+
+            <!-- BACKGROUND SLOT -->
+            <foreignObject 
+                v-if="$slots['chart-background']"
+                :x="0"
+                :y="0"
+                :width="svg.width <= 0 ? 10 : svg.width"
+                :height="svg.height <= 0 ? 10 : svg.height"
+                :style="{
+                    pointerEvents: 'none'
+                }"
+            >
+                <slot name="chart-background"/>
+            </foreignObject>
             
             <!-- DEFS -->
             <defs v-if="FINAL_CONFIG.type === 'classic'">
@@ -824,12 +838,12 @@ defineExpose({
             </template>
             
             <circle
-                v-if="FINAL_CONFIG.type === 'classic'"
+                v-if="FINAL_CONFIG.type === 'classic' && FINAL_CONFIG.style.chart.layout.donut.useShadow"
                 :cx="svg.width / 2"
                 :cy="svg.height / 2"
                 :r="minSize <= 0 ? 10 : minSize"
                 :fill="FINAL_CONFIG.style.chart.backgroundColor"
-                :filter="FINAL_CONFIG.style.chart.layout.donut.useShadow ? `url(#shadow_${uid})`: ''"
+                :filter="`url(#shadow_${uid})`"
             />
 
             <template v-if="total && FINAL_CONFIG.type === 'classic'">
