@@ -42,71 +42,71 @@ function createDs(n,m=100) {
 //     ]
 // })
 
-const dataset = ref([
-    {
-        name: "Curved",
-        series: createDs(12),
-        type: "line",
-        smooth: true,
-        useArea: true,
-        dataLabels: false,
-    },
-])
-
-
 // const dataset = ref([
-//         {
-//             name: "Long name serie",
-//             series: [-80, -60, -30, 0, null, 60, 80, 60, 30, 0, -30, -60, -80],
-//             comments: ["", "", "", "", "This is a comment that can be long, or that can be short but it depends."],
-//             type: "line",
-//             smooth: true,
-//             useArea: true,
-//             dataLabels: true,
-//             scaleSteps: 2,
-//             suffix: '$'
-//         },
-//         {
-//             name: "Long name serie",
-//             series: [10, 20, 12, 13, 10, -20, null, 20, 12, 16, 32, 64, 12],
-//             comments: ["", "", "", "", "This is a comment that can be long, or that can be short but it depends."],
-//             type: "line",
-//             smooth: false,
-//             useArea: true,
-//             dataLabels: true,
-//             scaleSteps: 2,
-//             prefix: '£'
-//         },
-//         {
-//             name: "S1",
-//             series: [-20, 20, 8, 16, null, 13, -16, 55, 12, 3, 7, 12, 6],
-//             comments: ["Some sort of negative comment", "Some sort of positive comment", "", "","", "", "", "Some sort of positive comment", "",  ""],
-//             type: "bar",
-//             smooth: false,
-//             useArea: true,
-//             scaleSteps: 2,
-//             color: "#FF000050"
-//         },
-//         {
-//             name: "S2",
-//             series: [10,12,10,12, 25, 12, 4, 4, 3, 7, 8, 9, 12],
-//             comments: ["", "", "", "","", "", "", "", "", "This is another comment"],
-//             type: "plot",
-//             smooth: false,
-//             useArea: true,
-//             scaleSteps: 2
-//         },
-//         {
-//             name: "S3",
-//             series: [23.12, 23.12, 23.05, 23.07, null, 23.69, 23.72, 23.25, 23.36, 23.41, 23.65],
-//             type: "line",
-//             smooth: false,
-//             useArea: true,
-//             scaleSteps: 5,
-//             autoScaling: false,
-//             stackRatio: 0.5
-//         },
-//     ])
+//     {
+//         name: "Curved",
+//         series: createDs(12),
+//         type: "bar",
+//         smooth: true,
+//         useArea: true,
+//         dataLabels: false,
+//     },
+// ])
+
+
+const dataset = ref([
+        {
+            name: "Long name serie",
+            series: [-80, -60, -30, 0, null, 60, 80, 60, 30, 0, -30, -60, -80],
+            comments: ["", "", "", "", "This is a comment that can be long, or that can be short but it depends."],
+            type: "line",
+            smooth: true,
+            useArea: true,
+            dataLabels: true,
+            scaleSteps: 2,
+            suffix: '$'
+        },
+        {
+            name: "Long name serie",
+            series: [10, 20, 12, 13, 10, -20, null, 20, 12, 16, 32, 64, 12],
+            comments: ["", "", "", "", "This is a comment that can be long, or that can be short but it depends."],
+            type: "bar",
+            smooth: false,
+            useArea: true,
+            dataLabels: true,
+            scaleSteps: 2,
+            prefix: '£'
+        },
+        {
+            name: "S1",
+            series: [-20, 20, 8, 16, null, 13, -16, 55, 12, 3, 7, 12, 6],
+            comments: ["Some sort of negative comment", "Some sort of positive comment", "", "","", "", "", "Some sort of positive comment", "",  ""],
+            type: "bar",
+            smooth: false,
+            useArea: true,
+            scaleSteps: 2,
+            color: "#FF000050"
+        },
+        {
+            name: "S2",
+            series: [10,12,10,12, 25, 12, 4, 4, 3, 7, 8, 9, 12],
+            comments: ["", "", "", "","", "", "", "", "", "This is another comment"],
+            type: "plot",
+            smooth: false,
+            useArea: true,
+            scaleSteps: 2
+        },
+        {
+            name: "S3",
+            series: [23.12, 23.12, 23.05, 23.07, null, 23.69, 23.72, 23.25, 23.36, 23.41, 23.65],
+            type: "line",
+            smooth: false,
+            useArea: true,
+            scaleSteps: 5,
+            autoScaling: false,
+            stackRatio: 0.5
+        },
+    ])
 
     const alternateDataset = ref([
     {
@@ -261,6 +261,7 @@ const model = ref([
 
     { key: 'chart.grid.stroke', def: '#FF0000', type: 'color', label: 'lineColor', category: 'grid' },
     { key: 'chart.grid.showVerticalLines', def: true, type: 'checkbox', label: 'verticalLines', category: 'grid' },
+    { key: 'chart.grid.showHorizontalLines', def: true, type: 'checkbox', label: 'verticalLines', category: 'grid' },
 
     { key: 'chart.grid.frame.show', def: false, type: 'checkbox'},
     { key: 'chart.grid.frame.stroke', def: '#1A1A1A', type: 'color'},
@@ -287,7 +288,7 @@ const model = ref([
     { key: 'chart.grid.labels.xAxisLabels.showOnlyAtModulo', def: true, type: 'checkbox'},
     { key: 'chart.grid.labels.xAxisLabels.modulo', def: 6, type: 'number'},
 
-    { key: 'chart.grid.labels.yAxis.commonScaleSteps', def: 5, min: 0, max: 100, type: 'number' },
+    { key: 'chart.grid.labels.yAxis.commonScaleSteps', def: 10, min: 0, max: 100, type: 'number' },
     { key: 'chart.grid.labels.yAxis.useIndividualScale', def: false, type: "checkbox" },
     { key: 'chart.grid.labels.yAxis.stacked', def: false, type: 'checkbox' },
     { key: 'chart.grid.labels.yAxis.gap', def: 12, min: 0, max: 200, type: 'number' },
@@ -597,10 +598,18 @@ function selectTimeLabel(data) {
             responsive: true,
         }" @selectTimeLabel="selectTimeLabel">
 
-        <template #chart-background>
+        <template #pattern="{ seriesIndex, patternId }">
+            <pattern v-if="seriesIndex === 0" :id="patternId" width="70" height="8" patternTransform="scale(2)" patternUnits="userSpaceOnUse" opacity="0.5" ><rect width="100%" height="100%" fill="#FFFFFF20"/><path fill="none" stroke="#ecc94b" d="M-.02 22c8.373 0 11.938-4.695 16.32-9.662C20.785 7.258 25.728 2 35 2s14.215 5.258 18.7 10.338C58.082 17.305 61.647 22 70.02 22M-.02 14.002C8.353 14 11.918 9.306 16.3 4.339 20.785-.742 25.728-6 35-6S49.215-.742 53.7 4.339c4.382 4.967 7.947 9.661 16.32 9.664M70 6.004c-8.373-.001-11.918-4.698-16.3-9.665C49.215-8.742 44.272-14 35-14S20.785-8.742 16.3-3.661C11.918 1.306 8.353 6-.02 6.002"/></pattern>
+
+            <pattern v-if="seriesIndex === 1" :id="patternId" width="29" height="50.115" patternTransform="scale(2)" patternUnits="userSpaceOnUse"><rect width="100%" height="100%" fill="#2b2b3150"/><path fill="none" stroke="#ecc94b" stroke-linecap="square" stroke-width=".5" d="M14.5 6.628 8.886 3.372v-6.515L14.502-6.4l5.612 3.257-.001 6.514zm0 50.06-5.613-3.256v-6.515l5.614-3.258 5.612 3.257-.001 6.515zm14.497-25.117-5.612-3.257v-6.515L29 18.541l5.612 3.257-.001 6.515zm-29 0-5.612-3.257v-6.515L0 18.541l5.612 3.257v6.515zM14.5 11.82 4.36 5.967l.002-11.706 10.14-5.855L24.638-5.74l-.001 11.707zm0 50.06L4.36 56.028l.002-11.706 10.14-5.855 10.137 5.852-.001 11.707zm14.498-25.118-10.14-5.852.002-11.707L29 13.349l10.137 5.853-.001 11.706zm-29 0-10.139-5.852.002-11.707L0 13.349l10.138 5.853-.002 11.706zm14.501-19.905L0 8.488.002-8.257l14.5-8.374L29-8.26l-.002 16.745zm0 50.06L0 58.548l.002-16.745 14.5-8.373L29 41.8l-.002 16.744zM28.996 41.8l-14.498-8.37.002-16.744L29 8.312l14.498 8.37-.002 16.745zm-29 0-14.498-8.37.002-16.744L0 8.312l14.498 8.37-.002 16.745z"/></pattern>
+
+            <pattern v-if="seriesIndex === 2" :id="patternId" width="40" height="40" patternTransform="scale(2)" patternUnits="userSpaceOnUse"><rect width="100%" height="100%" fill="#2b2b31"/><path fill="#ecc94b" d="M20 8.52h20v2.96H20zM20 20h20v20H20z"/><path fill="#f44034" d="M21.63 0 20 1.63v1.54L23.15 0zm3.08 0L20 4.71v1.54L26.25 0zm3.08 0L20 7.79v1.53L29.32 0zm3.07 0L20 10.86v1.54L32.4 0zm3.08 0L20 13.94v1.54L35.48 0zm3.08 0L20 17.02v1.54L38.55 0zM40 .1l-20 20L.1 40h1.53L40 1.63zm0 3.07L3.17 40h1.54L40 4.71zm0 3.08L6.25 40h1.54L40 7.79zm0 3.07L9.32 40h1.54L40 10.86zm0 3.08L12.4 40h1.54L40 13.94zm0 3.08L15.48 40h1.54L40 17.02zm0 3.08L18.55 40h1.55L40 20.1V20zM1.63 20 0 21.63v1.54L3.15 20zm3.08 0L0 24.71v1.54L6.25 20zm3.08 0L0 27.79v1.53L9.32 20zm3.07 0L0 30.86v1.54L12.4 20zm3.08 0L0 33.94v1.54L15.48 20zm3.08 0L0 37.02v1.54L18.55 20zM40 21.63 21.63 40h1.54L40 23.17zm0 3.08L24.71 40h1.54L40 26.25zm0 3.08L27.79 40h1.53L40 29.33zm0 3.08L30.86 40h1.54l7.6-7.6zm0 3.07L33.94 40h1.54L40 35.48zm0 3.08L37.02 40h1.54L40 38.56zM9.32 0l-.8.8v1.54L10.86 0zm2.16.92L8.52 3.88v1.54l2.96-2.96zm0 3.08L8.52 6.96V8.5l2.96-2.96zm0 3.08-1.44 1.44-2.96 2.96h1.44v.1l.1-.1 2.86-2.87.1-.09h-.1zM.8 8.52l-.8.8v1.54l2.34-2.34zm3.08 0L.92 11.48h1.54l2.96-2.96zm3.08 0L4 11.48h1.54L8.5 8.52zm6.16 0-1.64 1.63-1.33 1.33-1.63 1.63v1.54l2.96-2.96v-.21h.21l2.96-2.96zm3.07 0-2.96 2.96h1.54l2.96-2.96zm3.08 0-2.96 2.96h1.53L20 9.32v-.8zm.73 2.34-.62.62H20zm-8.52 2.37-2.96 2.96v1.54l2.96-2.96zm0 3.07-2.96 2.97V40h2.96V20H9.32l2.16-2.16z"/></pattern>
+        </template> 
+
+        <!-- <template #chart-background>
             <div style="width: 100%; height:100%; background: radial-gradient(at top left, red, white)">
             </div>
-        </template>
+        </template> -->
 
         <template #time-label="{x, y, fontSize, fill, transform, absoluteIndex, content, textAnchor }">
             <g @click="() => selectTimeLabel({x, y, fontSize, absoluteIndex })">                
@@ -644,6 +653,7 @@ function selectTimeLabel(data) {
         </template>
     </LocalVueUiXy>
     </div>
+
     <Box :dataset="isPropsToggled ? alternateDataset : dataset" comp="VueUiXy">
         <template #title>VueUiXy</template>
 
@@ -883,4 +893,5 @@ function selectTimeLabel(data) {
             {{ config }}
         </template>
     </Box>
+
 </template>
