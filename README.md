@@ -154,6 +154,12 @@ const dataset = ref([...]);
 
 ```
 
+Note that the following utility components are not supported by the universal VueDataUi component and must be imported individually:
+
+- Arrow
+- VueUiIcon
+- VueUiPattern
+
 ## Typescript
 
 Types are available in the 'vue-data-ui.d.ts' file under the types directory of the package.
@@ -762,7 +768,7 @@ The following components do not support this slot, because it would not make sen
 - VueUiWaffle
 - VueUiXyCanvas
 
-# Pattern slot (since v2.4.66)
+# Pattern slot (since v2.4.67)
 
 A #pattern slot is available on some components to apply custom patterns on datapoints for further customization.
 The slot exposes the seriesIndex, and a patternId which must be used on the pattern element to be recognized.
@@ -771,7 +777,7 @@ A pattern element must be used inside this slot. It will be injected inside a de
 ```html
 <VueUiDonut :config="config" :dataset="dataset">
   <template #pattern="{ seriesIndex, patternId }">
-    <!-- Apply a pattern on the first datapoint only -->
+    <!-- Apply a patattern on the first datapoint only -->
     <pattern
       v-if="seriesIndex === 0"
       :id="patternId"
@@ -793,3 +799,44 @@ The #pattern slot is available on the following components:
 - VueUiStackbar
 - VueUiVerticalBar
 - VueUiXy
+
+A set of 12 readymade patterns are available through the VueUiPattern component:
+
+```js
+import { VueUiPattern } from "vue-data-ui";
+```
+
+```html
+<VueUiDonut :dataset="dataset" :config="config">
+  <template #pattern="{ seriesIndex, patternId }">
+    <VueUiPattern :id="patternId" name="bubbles" v-if="seriesIndex === 0" />
+    <VueUiPattern :id="patternId" name="squares" v-if="seriesIndex === 1" />
+  </template>
+</VueUiDonut>
+```
+
+VueUiPattern accepts the following props:
+
+- id: string, required. Pass the patternId provided by the #pattern slot
+- name: string, required. The name of the pattern to use
+- fill: string, optional. The backgroundColor of the pattern. Transparent by default to show the datapoint base color
+- stroke: string, optional. Default: #2D353C
+- strokeWidth: number, optional. Default: 1
+- scale: number, optional. Default: 1
+
+List of available patterns:
+
+| pattern name     |
+| ---------------- |
+| bubbles          |
+| flooring         |
+| grid             |
+| hexagon-diamond  |
+| hexagon-flooring |
+| hexagon-grid     |
+| maze             |
+| redrum           |
+| scales           |
+| squares          |
+| wave             |
+| zigzag           |
