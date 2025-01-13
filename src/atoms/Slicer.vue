@@ -105,6 +105,10 @@ const props = defineProps({
     enableSelectionDrag: {
         type: Boolean,
         default: true
+    },
+    verticalHandles: {
+        type: Boolean,
+        default: false,
     }
 });
 
@@ -318,6 +322,19 @@ const dragThreshold = computed(() => {
     return w / (props.max - props.min);
 });
 
+const selectionWidth = computed(() => {
+    const w = zoomWrapper.value.getBoundingClientRect().width - 48;
+    return w / (props.max - props.min) * currentRange.value;
+})
+
+const RA_SPECIAL_MAGIC_NUMBER = ref(2.5);
+
+const flooredDatapointsToWidth = computed(() => {
+    const w = zoomWrapper.value.getBoundingClientRect().width - 48;
+
+    return Math.ceil((props.max - props.min) / ((w - selectionWidth.value) / RA_SPECIAL_MAGIC_NUMBER.value));
+})
+
 const startDragging = (event) => {
     if (!props.enableSelectionDrag) {
         return;
@@ -357,13 +374,13 @@ function updateDragging(currentX) {
     if (Math.abs(deltaX) > dragThreshold.value) {
         if (deltaX > 0) {
             if (Number(endValue.value) + 1 <= props.max) {
-                const v = Number(endValue.value) + 1;
+                const v = Math.min(props.max, Number(endValue.value) + flooredDatapointsToWidth.value)
                 setEndValue(v);
                 setStartValue(v - currentRange.value);
             }
         } else {
             if (Number(startValue.value) - 1 >= props.min) {
-                const v = Number(startValue.value) - 1;
+                const v = Math.max(0, Number(startValue.value) - flooredDatapointsToWidth.value);
                 setStartValue(v);
                 setEndValue(v + currentRange.value);
             }
@@ -559,7 +576,7 @@ defineExpose({
                 ref="rangeStart" 
                 :key="`range-min${inputStep}`" 
                 type="range" 
-                class="range-left range-handle" 
+                :class="{'range-left': true, 'range-handle': true, 'range-minimap': hasMinimap && verticalHandles }" 
                 :min="min" 
                 :max="max" 
                 v-model="startValue" 
@@ -572,7 +589,7 @@ defineExpose({
                 v-if="enableRangeHandles"
                 ref="rangeEnd" 
                 type="range" 
-                class="range-right range-handle" 
+                :class="{'range-right': true, 'range-handle': true, 'range-minimap': hasMinimap && verticalHandles }" 
                 :min="min" 
                 :max="max" 
                 v-model="endValue" 
@@ -598,7 +615,6 @@ defineExpose({
     pointer-events: none;
     position: absolute;
     top: -33px;
-    left: 0;
     svg{
         position: absolute;
         top: 0;
@@ -617,6 +633,11 @@ input[type="range"] {
     z-index: 3;
 }
 
+input[type="range"].range-minimap {
+    width: calc(100%);
+    left: 0;
+}
+
 input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
     pointer-events: auto;
@@ -624,7 +645,7 @@ input[type="range"]::-webkit-slider-thumb {
     height: 20px;
     background-color: v-bind(slicerColor);
     border-radius: 50%;
-    cursor: pointer;
+    cursor: ew-resize;
     position: relative;
     z-index: 2;
     outline: 2px solid v-bind(borderColor);
@@ -634,6 +655,16 @@ input[type="range"]::-webkit-slider-thumb {
         box-shadow: 0 0 0 10px v-bind(selectColorOpaque);
         background-color: v-bind(selectColor);
     }
+}
+
+input[type="range"].range-minimap::-webkit-slider-thumb {
+    width: 6px;
+    height: 50px;
+    border-radius: 0px;
+    margin-top: -36px;
+    border-right: 1px solid v-bind(selectColor);
+    border-left: 1px solid v-bind(selectColor);
+    cursor:ew-resize;
 }
 
 input[type="range"]::-moz-range-thumb {
@@ -642,7 +673,7 @@ input[type="range"]::-moz-range-thumb {
     height: 20px;
     background-color: v-bind(slicerColor);
     border-radius: 50%;
-    cursor: pointer;
+    cursor: ew-resize;
     position: relative;
     z-index: 2;
     outline: 2px solid v-bind(borderColor);
@@ -654,13 +685,24 @@ input[type="range"]::-moz-range-thumb {
     }
 }
 
+input[type="range"].range-minimap::-moz-range-thumb {
+    width: 6px;
+    height: 50px;
+    border-radius: 0px;
+    border-right: 1px solid v-bind(selectColor);
+    border-left: 1px solid v-bind(selectColor);
+    cursor: ew-resize;
+    transform: translateY(-20px); 
+    pointer-events: auto;
+}
+
 input[type="range"]::-ms-thumb {
     pointer-events: auto;
     width: 20px;
     height: 20px;
     background-color: v-bind(slicerColor);
     border-radius: 50%;
-    cursor: pointer;
+    cursor: ew-resize;
     position: relative;
     z-index: 2;
     outline: 2px solid v-bind(borderColor);
