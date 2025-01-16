@@ -359,6 +359,11 @@ function handleDragging(event) {
 };
 
 function handleTouchDragging(event) {
+    if (!zoomWrapper.value.contains(event.target)) {
+        // Allow scrolling
+        return;
+    }
+
     if (event.target.classList.contains('range-handle')) {
         return;
     }
