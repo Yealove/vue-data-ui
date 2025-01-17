@@ -433,7 +433,7 @@
                                 :fill="el.color"
                                 :font-size="fontSizes.dataLabels"
                                 text-anchor="middle"
-                                :transform="`translate(${el.x - FINAL_CONFIG.chart.grid.labels.yAxis.labelWidth + 5}, ${mutableConfig.isStacked ? drawingArea.bottom - el.yOffset - (el.individualHeight / 2) : drawingArea.top + drawingArea.height / 2}) rotate(-90)`"
+                                :transform="`translate(${el.x - FINAL_CONFIG.chart.grid.labels.yAxis.labelWidth + 5 + xPadding}, ${mutableConfig.isStacked ? drawingArea.bottom - el.yOffset - (el.individualHeight / 2) : drawingArea.top + drawingArea.height / 2}) rotate(-90)`"
                             >
                                 {{ el.name }} {{ el.scaleLabel ? `- ${el.scaleLabel}` : '' }}
                             </text>
@@ -502,7 +502,7 @@
                                         s: yLabel.suffix, 
                                         r: 1,
                                     })) : '' 
-                                    }}
+                                }}
                             </text>
                         </g>
                     </template>
@@ -956,7 +956,7 @@
                 <template v-if="mutableConfig.useIndividualScale && !mutableConfig.isStacked">
                     <rect 
                         v-for="trap in allScales"
-                        :x="trap.x - FINAL_CONFIG.chart.grid.labels.yAxis.labelWidth"
+                        :x="trap.x - FINAL_CONFIG.chart.grid.labels.yAxis.labelWidth + xPadding"
                         :y="drawingArea.top"
                         :width="FINAL_CONFIG.chart.grid.labels.yAxis.labelWidth"
                         :height="drawingArea.height < 0 ? 10 : drawingArea.height"
@@ -970,7 +970,7 @@
                 <g>
                     <text 
                         data-cy="xy-axis-yLabel" 
-                        v-if="FINAL_CONFIG.chart.grid.labels.axis.yLabel && ! mutableConfig.useIndividualScale" 
+                        v-if="FINAL_CONFIG.chart.grid.labels.axis.yLabel && !mutableConfig.useIndividualScale" 
                         :font-size="fontSizes.yAxis" 
                         :fill="FINAL_CONFIG.chart.grid.labels.color"
                         :transform="`translate(${fontSizes.yAxis + FINAL_CONFIG.chart.grid.labels.axis.yLabelOffsetX}, ${drawingArea.top + drawingArea.height / 2}) rotate(-90)`"
@@ -1583,6 +1583,10 @@ export default {
             return this.FINAL_CONFIG.chart.grid.position === 'middle' ? 0 : this.drawingArea.width / this.maxSeries / 2
         },
         relativeZero() {
+            if (![null, undefined].includes(this.FINAL_CONFIG.chart.grid.labels.yAxis.scaleMin)) {
+                return -this.niceScale.min
+            }
+
             if(this.niceScale.min >= 0) return 0;
             return Math.abs(this.niceScale.min);
         },
@@ -1725,7 +1729,6 @@ export default {
                     const yRatio = this.mutableConfig.useIndividualScale ? ((datapoint.absoluteValues[j] + individualZero) / individualMax) : this.ratioToMax(plot)
                     const x = this.mutableConfig.useIndividualScale && this.mutableConfig.isStacked 
                         ? this.drawingArea.left + (this.drawingArea.width / this.maxSeries * j) 
-                        // : (this.drawingArea.left - this.slot.bar / 2 + (this.slot.bar) * i) + ((this.slot.bar) * j * this.absoluteDataset.filter(ds => ds.type === 'bar').filter(s => !this.segregatedSeries.includes(s.id)).length);
                         : this.drawingArea.left
                             + (this.slot.bar * i)
                             + (this.slot.bar * j * barLen)
@@ -2328,7 +2331,7 @@ export default {
         },
         zero(){
             return this.drawingArea.bottom - (this.drawingArea.height * this.ratioToMax(this.relativeZero));
-        }
+        },
     },
     mounted() {
         // FIXME: all contents must be placed in a func and also called when ds or cfg are updated
@@ -2737,8 +2740,10 @@ export default {
             return v
         },
         calcRectHeight(plot) {
+            const zeroForPositiveValuesOnly = ![null, undefined].includes(this.FINAL_CONFIG.chart.grid.labels.yAxis.scaleMin) && this.FINAL_CONFIG.chart.grid.labels.yAxis.scaleMin > 0 && this.min >= 0 ? this.drawingArea.bottom : this.zero;
+
             if(plot.value >= 0) {
-                return this.checkNaN(this.zero - plot.y <= 0 ? 0.00001 : this.zero - plot.y);
+                return this.checkNaN(zeroForPositiveValuesOnly - plot.y <= 0 ? 0.00001 : zeroForPositiveValuesOnly - plot.y);
             } else {
                 return this.checkNaN(plot.y - this.zero <= 0 ? 0.00001 : plot.y - this.zero);
             }
