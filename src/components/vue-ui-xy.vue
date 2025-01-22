@@ -583,28 +583,21 @@
                         :stroke-dasharray="serie.dashed ? FINAL_CONFIG.line.strokeWidth * 2 : 0" 
                         fill="none" 
                     />
-                    <g v-else-if="serie.plots.length > 1">
-                        <g v-for="(plot, j) in serie.plots" :key="`line_${i}_${j}`">
-                            <line
-                                :data-cy="`xy-line-segment-${i}-${j}`"
-                                v-if="plot && j < serie.plots.length - 1 && serie.plots[j+1] && canShowValue(plot.value) && canShowValue(serie.plots[j+1].value)"
-                                :x1="plot.x"
-                                :x2="serie.plots[j+1].x"
-                                :y1="forceValidValue(plot.y)"
-                                :y2="forceValidValue(serie.plots[j+1].y)"
-                                :stroke="FINAL_CONFIG.chart.backgroundColor"
-                                :stroke-width="FINAL_CONFIG.line.strokeWidth + 1"
-                                :stroke-dasharray="serie.dashed ? FINAL_CONFIG.line.strokeWidth * 2 : 0"
-                                stroke-linejoin="round"
-                                stroke-linecap="round"
-                            />
-                        </g>
-                    </g>
+
+                    <path
+                        v-else-if="serie.plots.length > 1"
+                        :d="`M${serie.straight}`"
+                        :stroke="FINAL_CONFIG.chart.backgroundColor"
+                        :stroke-width="FINAL_CONFIG.line.strokeWidth + 1"
+                        :stroke-dasharray="serie.dashed ? FINAL_CONFIG.line.strokeWidth * 2 : 0"
+                        fill="none"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    />
                 </g>
 
                 <defs v-if="$slots.pattern">
                     <slot v-for="(serie, i) in safeDataset" :key="`serie_pattern_slot_${i}`" name="pattern" v-bind="{...serie, seriesIndex: serie.slotAbsoluteIndex, patternId: `pattern_${uniqueId}_${i}`}"/>
-
                 </defs>
 
                 <!-- LINES -->
@@ -633,31 +626,27 @@
                         :stroke="serie.color" 
                         :stroke-width="FINAL_CONFIG.line.strokeWidth" 
                         :stroke-dasharray="serie.dashed ? FINAL_CONFIG.line.strokeWidth * 2 : 0" 
-                        fill="none" 
+                        fill="none"
+                        stroke-linecap="round"
                     />
-                    <g v-else-if="serie.plots.length > 1">
-                        <g v-for="(plot, j) in serie.plots" :key="`line_${i}_${j}`">
-                            <line
-                                :data-cy="`xy-line-segment-${i}-${j}`"
-                                v-if="plot && j < serie.plots.length - 1 && serie.plots[j+1] && canShowValue(plot.value) && canShowValue(serie.plots[j+1].value)"
-                                :x1="plot.x"
-                                :x2="serie.plots[j+1].x"
-                                :y1="forceValidValue(plot.y)"
-                                :y2="forceValidValue(serie.plots[j+1].y)"
-                                :stroke="serie.color"
-                                :stroke-width="FINAL_CONFIG.line.strokeWidth"
-                                :stroke-dasharray="serie.dashed ? FINAL_CONFIG.line.strokeWidth * 2 : 0"
-                                stroke-linejoin="round"
-                                stroke-linecap="round"
-                            />
-                        </g>
-                    </g>
-                    <g v-for="(plot, j) in serie.plots" 
-                        :key="`circle_line_${i}_${j}`">
 
+                    <path
+                        v-else-if="serie.plots.length > 1"
+                        :data-cy="`xy-line-path-${i}`"
+                        :d="`M${serie.straight}`"
+                        :stroke="serie.color"
+                        :stroke-width="FINAL_CONFIG.line.strokeWidth"
+                        :stroke-dasharray="serie.dashed ? FINAL_CONFIG.line.strokeWidth * 2 : 0"
+                        fill="none"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    />
+
+                    <template v-for="(plot, j) in serie.plots" 
+                        :key="`circle_line_${i}_${j}`">
                         <Shape
                             :data-cy="`xy-plot-${i}-${j}`"
-                            v-if="plot && canShowValue(plot.value)"
+                            v-if="(!optimize.linePlot && plot && canShowValue(plot.value)) || (optimize.linePlot && plot && canShowValue(plot.value) && ((selectedSerieIndex !== null && selectedSerieIndex === j) || (selectedMinimapIndex !== null && selectedMinimapIndex === j)))"
                             :shape="['triangle', 'square', 'diamond', 'pentagon', 'hexagon', 'star'].includes(serie.shape) ? serie.shape : 'circle'"
                             :color="FINAL_CONFIG.line.useGradient ? `url(#lineGradient_${i}_${uniqueId})` : FINAL_CONFIG.line.dot.useSerieColor ? serie.color : FINAL_CONFIG.line.dot.fill"
                             :plot="{ x: checkNaN(plot.x), y: checkNaN(plot.y) }"
@@ -673,8 +662,8 @@
                                 </div>
                             </foreignObject>
                         </template>
+                    </template> 
 
-                    </g > 
                     <g :data-cy="`xy-line-progression-${i}`" v-if="Object.hasOwn(serie, 'useProgression') && serie.useProgression === true && !isNaN(calcLinearProgression(serie.plots).trend)">
                         <defs>
                             <marker :id="`line_arrow_${i}`" :markerWidth="7" :markerHeight="7" 
@@ -716,8 +705,8 @@
 
                 <!-- X LABELS BAR -->
                 <g v-if="(FINAL_CONFIG.bar.labels.show || FINAL_CONFIG.bar.serieName.show) && mutableConfig.dataLabels.show">
-                    <g v-for="(serie, i) in barSet" :key="`xLabel_bar_${i}`" :class="`xLabel_bar_${i}`" :style="`opacity:${selectedScale ? selectedScale === serie.id ? 1 : 0.2 : 1};transition:opacity 0.2s ease-in-out`">
-                        <g v-for="(plot, j) in serie.plots" :key="`xLabel_bar_${i}_${j}`">
+                    <template v-for="(serie, i) in barSet" :key="`xLabel_bar_${i}`" :class="`xLabel_bar_${i}`" :style="`opacity:${selectedScale ? selectedScale === serie.id ? 1 : 0.2 : 1};transition:opacity 0.2s ease-in-out`">
+                        <template v-for="(plot, j) in serie.plots" :key="`xLabel_bar_${i}_${j}`">
                             <text
                                 :data-cy="`xy-bar-label-x-${i}-${j}`"
                                 v-if="plot && (!Object.hasOwn(serie, 'dataLabels') || ((serie.dataLabels === true || (selectedSerieIndex !== null && selectedSerieIndex === j) || (selectedMinimapIndex !== null && selectedMinimapIndex === j)))) && FINAL_CONFIG.bar.labels.show"
@@ -754,14 +743,14 @@
                             >
                                 {{ FINAL_CONFIG.bar.serieName.useAbbreviation ? abbreviate({ source: serie.name, length: FINAL_CONFIG.bar.serieName.abbreviationSize}) : serie.name }}
                             </text>
-                        </g>
-                    </g>
+                        </template>
+                    </template>
                 </g>
 
                 <!-- X LABELS PLOT -->
                 <g v-if="FINAL_CONFIG.plot.labels.show && mutableConfig.dataLabels.show">
-                    <g v-for="(serie, i) in plotSet" :key="`xLabel_plot_${i}`" :class="`xLabel_plot_${i}`" :style="`opacity:${selectedScale ? selectedScale === serie.id ? 1 : 0.2 : 1};transition:opacity 0.2s ease-in-out`">
-                        <g v-for="(plot, j) in serie.plots" :key="`xLabel_plot_${i}_${j}`">
+                    <template v-for="(serie, i) in plotSet" :key="`xLabel_plot_${i}`" :class="`xLabel_plot_${i}`" :style="`opacity:${selectedScale ? selectedScale === serie.id ? 1 : 0.2 : 1};transition:opacity 0.2s ease-in-out`">
+                        <template v-for="(plot, j) in serie.plots" :key="`xLabel_plot_${i}_${j}`">
                             <text
                                 :data-cy="`xy-plot-label-x-${i}-${j}`"
                                 v-if="plot && !Object.hasOwn(serie, 'dataLabels') || (serie.dataLabels === true || (selectedSerieIndex !== null && selectedSerieIndex === j) || (selectedMinimapIndex !== null && selectedMinimapIndex === j))"
@@ -813,14 +802,14 @@
                                     {{ serie.name }}
                                 </div>
                             </foreignObject>
-                        </g>
-                    </g>
+                        </template>
+                    </template>
                 </g>
 
                 <!-- X LABELS LINE -->
                 <g v-if="FINAL_CONFIG.line.labels.show && mutableConfig.dataLabels.show">
-                    <g v-for="(serie, i) in lineSet" :key="`xLabel_line_${i}`" :class="`xLabel_line_${i}`" :style="`opacity:${selectedScale ? selectedScale === serie.id ? 1 : 0.2 : 1};transition:opacity 0.2s ease-in-out`">
-                        <g v-for="(plot, j) in serie.plots" :key="`xLabel_line_${i}_${j}`">
+                    <template v-for="(serie, i) in lineSet" :key="`xLabel_line_${i}`" :class="`xLabel_line_${i}`" :style="`opacity:${selectedScale ? selectedScale === serie.id ? 1 : 0.2 : 1};transition:opacity 0.2s ease-in-out`">
+                        <template v-for="(plot, j) in serie.plots" :key="`xLabel_line_${i}_${j}`">
                             <text
                                 :data-cy="`xy-line-label-x-${i}-${j}`"
                                 v-if="plot && !Object.hasOwn(serie, 'dataLabels') || (serie.dataLabels === true || (selectedSerieIndex !== null && selectedSerieIndex === j) || (selectedMinimapIndex !== null && selectedMinimapIndex === j))"
@@ -872,13 +861,13 @@
                                     {{ serie.name }}
                                 </div>
                             </foreignObject>
-                        </g>
-                    </g>
+                        </template>
+                    </template>
                 </g>
 
                 <!-- SERIE NAME TAGS : LINES -->
-                <g v-for="(serie, i) in lineSet" :key="`xLabel_line_${i}`" :class="`xLabel_line_${i}`" :style="`opacity:${selectedScale ? selectedScale === serie.id ? 1 : 0.2 : 1};transition:opacity 0.2s ease-in-out`">
-                    <g v-for="(plot, j) in serie.plots" :key="`xLabel_line_${i}_${j}`">
+                <template v-for="(serie, i) in lineSet" :key="`xLabel_line_${i}`" :class="`xLabel_line_${i}`" :style="`opacity:${selectedScale ? selectedScale === serie.id ? 1 : 0.2 : 1};transition:opacity 0.2s ease-in-out`">
+                    <template v-for="(plot, j) in serie.plots" :key="`xLabel_line_${i}_${j}`">
                         <text 
                             v-if="plot && j === 0 && serie.showSerieName && serie.showSerieName === 'start'"
                             :x="plot.x - fontSizes.plotLabels"
@@ -911,12 +900,12 @@
                                 maxWords: 2
                             })"
                         />
-                    </g>
-                </g>
+                    </template>
+                </template>
 
                 <!-- SERIE NAME TAGS : PLOTS -->
-                <g v-for="(serie, i) in plotSet" :key="`xLabel_plot_${i}`" :class="`xLabel_plot_${i}`" :style="`opacity:${selectedScale ? selectedScale === serie.id ? 1 : 0.2 : 1};transition:opacity 0.2s ease-in-out`">
-                    <g v-for="(plot, j) in serie.plots" :key="`xLabel_plot_${i}_${j}`">
+                <template v-for="(serie, i) in plotSet" :key="`xLabel_plot_${i}`" :class="`xLabel_plot_${i}`" :style="`opacity:${selectedScale ? selectedScale === serie.id ? 1 : 0.2 : 1};transition:opacity 0.2s ease-in-out`">
+                    <template v-for="(plot, j) in serie.plots" :key="`xLabel_plot_${i}_${j}`">
                         <text 
                             v-if="plot && j === 0 && serie.showSerieName && serie.showSerieName === 'start'"
                             :x="plot.x - fontSizes.plotLabels"
@@ -949,8 +938,8 @@
                                 maxWords: 2
                             })"
                         />
-                    </g>
-                </g>
+                    </template>
+                </template>
 
                 <!-- Y LABELS MOUSE TRAPS -->
                 <template v-if="mutableConfig.useIndividualScale && !mutableConfig.isStacked">
@@ -990,12 +979,12 @@
                     >
                         {{ FINAL_CONFIG.chart.grid.labels.axis.xLabel }}
                     </text>
-                </g>
+                </g>v-for="(label, i) in timeLabels" :key="`time_label_${i}`"
                 
                 <!-- TIME LABELS -->
                 <g v-if="FINAL_CONFIG.chart.grid.labels.xAxisLabels.show">
                     <template v-if="$slots['time-label']">
-                        <g v-for="(label, i) in timeLabels" :key="`time_label_${i}`">
+                        <template v-for="(label, i) in timeLabels" :key="`time_label_${i}`">
                             <slot name="time-label" v-bind="{
                                 x: drawingArea.left + (drawingArea.width / maxSeries) * i + (drawingArea.width / maxSeries / 2),
                                 y: drawingArea.bottom + fontSizes.xAxis * 1.3 + FINAL_CONFIG.chart.grid.labels.xAxisLabels.yOffset,
@@ -1010,7 +999,7 @@
                                     (label && FINAL_CONFIG.chart.grid.labels.xAxisLabels.showOnlyFirstAndLast && selectedSerieIndex === i && !FINAL_CONFIG.chart.grid.labels.xAxisLabels.showOnlyAtModulo) ||
                                     (label && !FINAL_CONFIG.chart.grid.labels.xAxisLabels.showOnlyFirstAndLast && FINAL_CONFIG.chart.grid.labels.xAxisLabels.showOnlyAtModulo && (i % Math.floor((this.slicer.end - this.slicer.start) / FINAL_CONFIG.chart.grid.labels.xAxisLabels.modulo) === 0))
                             }" />
-                        </g>
+                        </template>
                     </template>
                     <template v-else>
                         <g v-for="(label, i) in timeLabels" :key="`time_label_${i}`">
@@ -1039,24 +1028,24 @@
 
                 <!-- TOOLTIP TRAPS -->
                 <g>
-                    <g v-for="(_, i) in maxSeries" :key="`tooltip_trap_${i}`">
-                        <rect
-                            :data-cy="`xy-tooltip-trap-${i}`"
-                            data-cy-trap
-                            :x="drawingArea.left + (drawingArea.width / maxSeries) * i"
-                            :y="drawingArea.top"
-                            :height="drawingArea.height < 0 ? 10 : drawingArea.height"
-                            :width="drawingArea.width / maxSeries < 0 ? 0.00001 : drawingArea.width / maxSeries"
-                            fill="transparent"
-                            @mouseenter="toggleTooltipVisibility(true, i)"
-                            @mouseleave="toggleTooltipVisibility(false)"
-                            @click="selectX(i)"
-                        />
-                    </g>
+                    <rect
+                        v-for="(_, i) in maxSeries" :key="`tooltip_trap_${i}`"
+                        :data-cy="`xy-tooltip-trap-${i}`"
+                        data-cy-trap
+                        :x="drawingArea.left + (drawingArea.width / maxSeries) * i"
+                        :y="drawingArea.top"
+                        :height="drawingArea.height < 0 ? 10 : drawingArea.height"
+                        :width="drawingArea.width / maxSeries < 0 ? 0.00001 : drawingArea.width / maxSeries"
+                        fill="transparent"
+                        @mouseenter="toggleTooltipVisibility(true, i)"
+                        @mouseleave="toggleTooltipVisibility(false)"
+                        @click="selectX(i)"
+                    />
                 </g>
 
+
                 <!-- TIME TAG -->
-                <g v-if="FINAL_CONFIG.chart.timeTag.show && (![null, undefined].includes(selectedSerieIndex) || ![null, undefined].includes(selectedMinimapIndex) )">
+                <g v-if="FINAL_CONFIG.chart.timeTag.show && (![null, undefined].includes(selectedSerieIndex) || ![null, undefined].includes(selectedMinimapIndex) )" style="pointer-events:none">
                     <foreignObject
                         :x="drawingArea.left + (drawingArea.width / maxSeries) * ((selectedSerieIndex !== null ? selectedSerieIndex : 0) || (selectedMinimapIndex !== null ? selectedMinimapIndex : 0)) - 100 + (drawingArea.width / maxSeries / 2)"
                         :y="drawingArea.bottom"
@@ -1272,6 +1261,7 @@ import {
     createCsvContent,
     createPolygonPath,
     createSmoothPath,
+    createStraightPath,
     createStar,
     createTSpans,
     createUid,
@@ -1458,6 +1448,11 @@ export default {
         }
     },
     computed: {
+        optimize() {
+            return {
+                linePlot: this.maxSeries > this.FINAL_CONFIG.line.dot.hideAboveMaxSerieLength
+            };
+        },
         hasOptionsNoTitle() {
             return this.FINAL_CONFIG.chart.userOptions.show && (!this.FINAL_CONFIG.chart.title.show || !this.FINAL_CONFIG.chart.title.text);
         },
@@ -1894,6 +1889,8 @@ export default {
                 })
                 const curve = this.createSmoothPath(plots);
                 const autoScaleCurve = this.createSmoothPath(autoScalePlots);
+                const straight = this.createStraightPath(plots);
+                const autoScaleStraight = this.createStraightPath(autoScalePlots);
 
                 const scaleYLabels = individualScale.ticks.map(t => {
                     return {
@@ -1927,7 +1924,8 @@ export default {
                     zeroPosition: datapoint.autoScaling ? autoScaleZeroPosition : zeroPosition,
                     curve: datapoint.autoScaling ? autoScaleCurve : curve,
                     plots: datapoint.autoScaling ? autoScalePlots : plots,
-                    area: !datapoint.useArea ? '' : this.mutableConfig.useIndividualScale ? this.createIndividualArea(datapoint.autoScaling ? autoScalePlots: plots, datapoint.autoScaling ? autoScaleZeroPosition : zeroPosition) :  this.createArea(plots)
+                    area: !datapoint.useArea ? '' : this.mutableConfig.useIndividualScale ? this.createIndividualArea(datapoint.autoScaling ? autoScalePlots: plots, datapoint.autoScaling ? autoScaleZeroPosition : zeroPosition) :  this.createArea(plots),
+                    straight: datapoint.autoScaling ? autoScaleStraight : straight
                 }
             })
         },
@@ -2359,6 +2357,7 @@ export default {
         convertCustomPalette,
         createCsvContent,
         createSmoothPath,
+        createStraightPath,
         createTSpans,
         dataLabel,
         downloadCsv,
@@ -2577,10 +2576,12 @@ export default {
                         if (this.$refs.source) {
                             sourceHeight = this.$refs.source.getBoundingClientRect().height;
                         }
-                        this.height = entry.contentBoxSize[0].blockSize - titleHeight - legendHeight - slicerHeight - sourceHeight - 24;
-                        this.width = entry.contentBoxSize[0].inlineSize;
-                        this.viewBox = `0 0 ${this.width < 0 ? 10 : this.width} ${this.height < 0 ? 10 : this.height}`;
-                        this.convertSizes();
+                        requestAnimationFrame(() => {
+                            this.height = entry.contentBoxSize[0].blockSize - titleHeight - legendHeight - slicerHeight - sourceHeight - 24;
+                            this.width = entry.contentBoxSize[0].inlineSize;
+                            this.viewBox = `0 0 ${this.width < 0 ? 10 : this.width} ${this.height < 0 ? 10 : this.height}`;
+                            this.convertSizes();
+                        })
                     }
                 })
 
