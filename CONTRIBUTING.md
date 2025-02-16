@@ -19,7 +19,7 @@ We'd also love PRs. If you're thinking of a large PR, we advise opening up an is
 
 0. [Fork][fork] and clone the repository.
 1. Configure and install the dependencies: `npm install`.
-2. `npm run simple-build` will create the local dist
+2. `npm run prod`
 3. Run development: `npm run dev`. This step will install a temporary local vue-data-ui
 4. Create a new branch: `git checkout -b my-branch-name`.
 5. Make your change, add tests, and make sure the tests still pass by running `npm run prod`.
@@ -82,3 +82,12 @@ The page shows either 4 or 5 versions of the tested component:
 All versions 2 to 5 must be identical after running `npm run prod` then `npm run dev`
 
 The testing arena is pretty raw in terms of layout. Feel free to make it better ;)
+
+### Tests
+
+1. Unit tests (Vitest)
+
+   - `npm run test` to run, add `-w` flag to watch
+
+2. Component tests (Cypress, Component testing)
+   - `npm run test:e2e` to open Cypress
