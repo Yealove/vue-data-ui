@@ -127,7 +127,12 @@ export const components = [
         dataset: [],
         wrapperClass: ".vue-ui-dashboard-container",
     },
-    { name: "VueUiDigits", dataset: 99, wrapperClass: ".vue-ui-digits" },
+    { name: "VueUiDigits", dataset: 99, config: {
+        digits: {
+            color: '#000000',
+            skeletonColor: '#CCCCCC'
+        }
+    }, wrapperClass: ".vue-ui-digits" },
     {
         name: "VueUiDonut",
         dataset: [{ name: "S", values: [1] }],
@@ -157,7 +162,21 @@ export const components = [
     },
     {
         name: "VueUiGalaxy",
-        dataset: [{ name: "S", values: [1] }],
+        dataset: [
+            { name: "S1", values: [1] },
+            { name: "S2", values: [1] },
+            { name: "S3", values: [1] },
+        ],
+        config: {
+            style: {
+                chart: {
+                    title: {
+                        text: 'Title',
+                        subtitle: { text: 'Subtitle' }
+                    }
+                }
+            }
+        },
         wrapperClass: ".vue-ui-galaxy",
     },
     {
@@ -350,6 +369,16 @@ export const components = [
                 ],
             },
         ],
+        config: {
+            style: {
+                chart: {
+                    title: {
+                        text: 'Title',
+                        subtitle: { text: 'Subtitle' }
+                    }
+                }
+            }
+        },
         wrapperClass: ".vue-ui-molecule",
     },
     {
@@ -1351,6 +1380,16 @@ export const components = [
             { name: 'Norway', start: 5400, end: 6050 },
             { name: 'Ireland', start: 3000, end: 2000 }
         ],
+        config: {
+            style: {
+                chart: {
+                    title: {
+                        text: 'Title',
+                        subtitle: { text: 'Subtitle' }
+                    }
+                }
+            }
+        },
         wrapperClass: '.vue-ui-dumbbell'
     },
     {
@@ -1392,6 +1431,16 @@ export const components = [
             ['C2', 'D2', 2],
             ['C3', 'D2', 1],
         ],
+        config: {
+            style: {
+                chart: {
+                    title: {
+                        text: 'Title',
+                        subtitle: { text: 'Subtitle' }
+                    }
+                }
+            }
+        },
         wrapperClass: '.vue-ui-flow'
     },
     {
@@ -1570,6 +1619,16 @@ export const components = [
                 value: 1520
             },
         ],
+        config: {
+            style: {
+                chart: {
+                    title: {
+                        text: 'Title',
+                        subtitle: { text: 'Subtitle' }
+                    }
+                }
+            }
+        },
         wrapperClass: '.vue-ui-funnel'
     },
     {
@@ -1594,6 +1653,24 @@ export const components = [
                 ],
             },
         ],
+        config: {
+            style: {
+                chart: {
+                    axes: {
+                        x: {
+                            name: { text: 'x' },
+                        },
+                        y: {
+                            name: { text: 'y' },
+                        }
+                    },
+                    title: {
+                        text: 'Title',
+                        subtitle: { text: 'Subtitle' } 
+                    }
+                }
+            }
+        },
         wrapperClass: '.vue-ui-history-plot'
     },
     {
@@ -1608,6 +1685,16 @@ export const components = [
             }
             return arr;
         })(),
+        config: {
+            style: {
+                chart: {
+                    title: {
+                        text: 'Title',
+                        subtitle: { text: 'Subtitle' }
+                    }
+                }
+            }
+        },
         wrapperClass: '.vue-ui-circle-pack'
     }
 ];
