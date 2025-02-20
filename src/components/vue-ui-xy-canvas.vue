@@ -99,6 +99,7 @@ const source = ref(null);
 const titleStep = ref(0);
 const tableStep = ref(0);
 const legendStep = ref(0);
+const mouseY = ref(null);
 
 const isDataset = computed(() => {
     return !!props.dataset && props.dataset.length;
@@ -257,7 +258,7 @@ function createDatapointCoordinates({ hasAutoScale, series, min, max, scale, yOf
             autoScaleMin = scale.min;
             autoScalePtoMax = proportionToMax(s - autoScaleMin, scale.max - autoScaleMin)
         }
-        
+
         let y = 0;
 
         if (stackIndex === null) {
@@ -624,33 +625,6 @@ function setupChart() {
                 }
             );
         }
-
-        // AXES LABELS
-        if (FINAL_CONFIG.value.style.chart.grid.y.axisLabels.show) {
-            absoluteExtremes.value.yLabels.forEach((label, i) => {
-                text(
-                    ctx.value,
-                    applyDataLabel(
-                        FINAL_CONFIG.value.style.chart.dataLabels.formatter,
-                        label.value,
-                        dataLabel({
-                            p: FINAL_CONFIG.value.style.chart.grid.y.axisLabels.prefix || '',
-                            v: label.value,
-                            s: FINAL_CONFIG.value.style.chart.grid.y.axisLabels.suffix || '',
-                            r: FINAL_CONFIG.value.style.chart.grid.y.axisLabels.rounding || 0
-                        }),
-                        { datapoint: label, seriesIndex: i }
-                    ),
-                    label.x + FINAL_CONFIG.value.style.chart.grid.y.axisLabels.offsetX,
-                    label.y,
-                    {
-                        align: 'right',
-                        font: `${Math.round(w.value / 40 * FINAL_CONFIG.value.style.chart.grid.y.axisLabels.fontSizeRatio)}px ${FINAL_CONFIG.value.style.fontFamily}`,
-                        color: FINAL_CONFIG.value.style.chart.grid.y.axisLabels.color
-                    }
-                );
-            });
-        }
     } else {
         // STACKED
         // VERTICAL LINES
@@ -785,30 +759,6 @@ function setupChart() {
                         color: ds.color
                     }
                 );
-
-                ds.localYLabels.forEach((entry, i) => {
-                    text(
-                        ctx.value,
-                        applyDataLabel(
-                            FINAL_CONFIG.value.style.chart.dataLabels.formatter,
-                            entry.value,
-                            dataLabel({
-                                p: ds.prefix || FINAL_CONFIG.value.style.chart.grid.y.axisLabels.prefix || '',
-                                v: entry.value,
-                                s: ds.suffix || FINAL_CONFIG.value.style.chart.grid.y.axisLabels.suffix || '',
-                                r: ds.rounding || FINAL_CONFIG.value.style.chart.grid.y.axisLabels.rounding || 0
-                            }),
-                            { datapoint: entry, seriesIndex: i}
-                            ),
-                        entry.x + FINAL_CONFIG.value.style.chart.grid.y.axisLabels.offsetX,
-                        entry.y,
-                        {
-                            align: 'right',
-                            font: `${Math.round(w.value / 40 * FINAL_CONFIG.value.style.chart.grid.y.axisLabels.fontSizeRatio)}px ${FINAL_CONFIG.value.style.fontFamily}`,
-                            color: ds.color
-                        }
-                    );
-                });
             });
         }
 
@@ -876,6 +826,95 @@ function drawPlots(ds) {
     }
 }
 
+/**
+ * Draw data labels on Y Axis corresponding to the current tooltip data selection.
+ */
+function drawYAxisSelectedDatapoints() {
+    formattedDataset.value.forEach(ds => {
+        if (ds.showYMarker && getYandValueAtIndex(ds)) {
+            text(
+                ctx.value,
+                applyDataLabel(
+                    FINAL_CONFIG.value.style.chart.dataLabels.formatter,
+                    getYandValueAtIndex(ds).value,
+                    dataLabel({
+                        p: ds.prefix || FINAL_CONFIG.value.style.chart.grid.y.axisLabels.prefix || '',
+                        v: getYandValueAtIndex(ds).value,
+                        s: ds.suffix || FINAL_CONFIG.value.style.chart.grid.y.axisLabels.suffix || '',
+                        r: ds.rounding || FINAL_CONFIG.value.style.chart.grid.y.axisLabels.rounding || 0
+                    }),
+                    { datapoint: getYandValueAtIndex(ds), seriesIndex: null}
+                    ),
+                drawingArea.value.left - 8 + FINAL_CONFIG.value.style.chart.grid.y.axisLabels.offsetX,
+                getYandValueAtIndex(ds).y,
+                {
+                    align: 'right',
+                    font: `${Math.round(w.value / 40 * FINAL_CONFIG.value.style.chart.grid.y.axisLabels.fontSizeRatio)}px ${FINAL_CONFIG.value.style.fontFamily}`,
+                    color: ds.color
+                }
+            )
+        }
+    })
+}
+
+function drawYAxisScaleLabels() {
+    if (FINAL_CONFIG.value.style.chart.grid.y.axisLabels.show) {
+        if(!mutableConfig.value.stacked) {
+            absoluteExtremes.value.yLabels.forEach((label, i) => {
+                text(
+                    ctx.value,
+                    applyDataLabel(
+                        FINAL_CONFIG.value.style.chart.dataLabels.formatter,
+                        label.value,
+                        dataLabel({
+                            p: FINAL_CONFIG.value.style.chart.grid.y.axisLabels.prefix || '',
+                            v: label.value,
+                            s: FINAL_CONFIG.value.style.chart.grid.y.axisLabels.suffix || '',
+                            r: FINAL_CONFIG.value.style.chart.grid.y.axisLabels.rounding || 0
+                        }),
+                        { datapoint: label, seriesIndex: i }
+                    ),
+                    label.x + FINAL_CONFIG.value.style.chart.grid.y.axisLabels.offsetX,
+                    label.y,
+                    {
+                        align: 'right',
+                        font: `${Math.round(w.value / 40 * FINAL_CONFIG.value.style.chart.grid.y.axisLabels.fontSizeRatio)}px ${FINAL_CONFIG.value.style.fontFamily}`,
+                        color: FINAL_CONFIG.value.style.chart.grid.y.axisLabels.color,
+                        globalAlpha: formattedDataset.value.some(ds => ds.showYMarker) && ![null, undefined].includes(tooltipIndex.value) ? 0.2 : 1
+                    }
+                );
+            });
+        } else {
+            formattedDataset.value.forEach(ds => {
+                ds.localYLabels.forEach((entry, i) => {
+                    text(
+                        ctx.value,
+                        applyDataLabel(
+                            FINAL_CONFIG.value.style.chart.dataLabels.formatter,
+                            entry.value,
+                            dataLabel({
+                                p: ds.prefix || FINAL_CONFIG.value.style.chart.grid.y.axisLabels.prefix || '',
+                                v: entry.value,
+                                s: ds.suffix || FINAL_CONFIG.value.style.chart.grid.y.axisLabels.suffix || '',
+                                r: ds.rounding || FINAL_CONFIG.value.style.chart.grid.y.axisLabels.rounding || 0
+                            }),
+                            { datapoint: entry, seriesIndex: i}
+                            ),
+                        entry.x + FINAL_CONFIG.value.style.chart.grid.y.axisLabels.offsetX,
+                        entry.y,
+                        {
+                            align: 'right',
+                            font: `${Math.round(w.value / 40 * FINAL_CONFIG.value.style.chart.grid.y.axisLabels.fontSizeRatio)}px ${FINAL_CONFIG.value.style.fontFamily}`,
+                            color: ds.color,
+                            globalAlpha: ds.showYMarker && ![null, undefined].includes(tooltipIndex.value) ? 0.2 : 1
+                        }
+                    );
+                });
+            });
+        }
+    }
+}
+
 function drawDataLabels(ds) {
     for (let i = 0; i < ds.coordinatesLine.length; i += 1) {
         text(
@@ -906,7 +945,11 @@ function drawDataLabels(ds) {
 
 function drawTimeLabels() {
     for (let i = slicer.value.start; i < slicer.value.end; i += 1) {
-        if ((slicer.value.end - slicer.value.start) < FINAL_CONFIG.value.style.chart.grid.y.timeLabels.modulo || ((slicer.value.end - slicer.value.start) >= FINAL_CONFIG.value.style.chart.grid.y.timeLabels.modulo && (i % Math.floor((slicer.value.end - slicer.value.start) / FINAL_CONFIG.value.style.chart.grid.y.timeLabels.modulo) === 0 || i === (tooltipIndex.value + slicer.value.start)))) {
+        if (
+            (slicer.value.end - slicer.value.start) < FINAL_CONFIG.value.style.chart.grid.y.timeLabels.modulo || 
+            ((slicer.value.end - slicer.value.start) >= FINAL_CONFIG.value.style.chart.grid.y.timeLabels.modulo && (i % Math.floor((slicer.value.end - slicer.value.start) / FINAL_CONFIG.value.style.chart.grid.y.timeLabels.modulo) === 0 ||
+            (i === (tooltipIndex.value + slicer.value.start)) && FINAL_CONFIG.value.style.chart.grid.y.timeLabels.showMarker ))) 
+        {
             text(
                 ctx.value,
                 FINAL_CONFIG.value.style.chart.grid.y.timeLabels.values[i] || i + 1,
@@ -915,7 +958,7 @@ function drawTimeLabels() {
                 {
                     align: FINAL_CONFIG.value.style.chart.grid.y.timeLabels.rotation === 0 ? 'center' : FINAL_CONFIG.value.style.chart.grid.y.timeLabels.rotation > 0 ? 'left' : 'right',
                     font: `${Math.round(w.value / 40 * FINAL_CONFIG.value.style.chart.grid.y.timeLabels.fontSizeRatio)}px ${FINAL_CONFIG.value.style.fontFamily}`,
-                    color: setOpacity(FINAL_CONFIG.value.style.chart.grid.y.timeLabels.color, tooltipIndex.value !== null ? (tooltipIndex.value + slicer.value.start) === i ? 100 : 20 : 100),
+                    color: FINAL_CONFIG.value.style.chart.grid.y.timeLabels.showMarker ? setOpacity(FINAL_CONFIG.value.style.chart.grid.y.timeLabels.color, tooltipIndex.value !== null ? (tooltipIndex.value + slicer.value.start) === i ? 100 : 20 : 100) : FINAL_CONFIG.value.style.chart.grid.y.timeLabels.color,
                     rotation: FINAL_CONFIG.value.style.chart.grid.y.timeLabels.rotation,
                 }
             );
@@ -923,7 +966,7 @@ function drawTimeLabels() {
     }
 }
 
-function drawSelector() {
+function drawVerticalSelector() {
     line(
         ctx.value,
         [
@@ -937,6 +980,23 @@ function drawSelector() {
             linceCap: 'round'
         }
     );
+}
+
+function drawHorizontalSelector() {
+    if (!mouseY.value) return;
+    line(
+            ctx.value,
+            [
+                { x: drawingArea.value.left, y: mouseY.value },
+                { x: drawingArea.value.right, y: mouseY.value },
+            ],
+            {
+                color: FINAL_CONFIG.value.style.chart.selector.color,
+                lineDash: FINAL_CONFIG.value.style.chart.selector.dashed ? [8, 8] : [0, 0],
+                lineWidth: 2,
+                linceCap: 'round'
+            }
+        )
 }
 
 function drawBars() {
@@ -1086,9 +1146,7 @@ function draw() {
     setupChart();
     if (datasetHasChanged.value) {
 
-        if (tooltipHasChanged.value) {
-            (tooltipIndex.value !== null && FINAL_CONFIG.value.style.chart.selector.show) && drawSelector();
-        }
+        (tooltipIndex.value !== null && FINAL_CONFIG.value.style.chart.selector.show) && drawVerticalSelector();
 
         drawBars();
 
@@ -1114,12 +1172,10 @@ function draw() {
             ctx.value.drawImage(clonedCanvas.value, 0, 0)
         }
 
-        if (tooltipHasChanged.value) {
-            (tooltipIndex.value !== null && FINAL_CONFIG.value.style.chart.selector.show) && drawSelector();
-        }
+        (tooltipIndex.value !== null && FINAL_CONFIG.value.style.chart.selector.show) && drawVerticalSelector();
 
         // PLOT HIGHLIGHTS
-        if (tooltipHasChanged.value && tooltipIndex.value !== null) {
+        if (tooltipIndex.value !== null) {
             formattedDataset.value.forEach(ds => {
                 if (((ds.type === 'line' || !ds.type)) || ds.type === 'plot') {
                     if(!ds.coordinatesLine[tooltipIndex.value]) return
@@ -1145,6 +1201,11 @@ function draw() {
 
     // TIME LABELS
     FINAL_CONFIG.value.style.chart.grid.y.timeLabels.show && drawTimeLabels();
+    FINAL_CONFIG.value.style.chart.selector.show && FINAL_CONFIG.value.style.chart.selector.showHorizontalSelector && drawHorizontalSelector();
+
+    drawYAxisScaleLabels();
+    drawYAxisSelectedDatapoints();
+
     datasetHasChanged.value = false;
 }
 
@@ -1153,10 +1214,23 @@ const debounceCanvasResize = debounce(() => {
     resizeCanvas()
 }, maxSeries.value > 200 ? 10 : 1, !tooltipHasChanged.value);
 
+function getYandValueAtIndex(datapoint) {
+    if ([null, undefined].includes(tooltipIndex.value) || !datapoint.coordinatesLine[tooltipIndex.value]) return false;
+    const { y, value } = datapoint.coordinatesLine[tooltipIndex.value];
+    return { y, value };
+}
+
 function handleMousemove(e) {
-    
-    const { left } = canvas.value.getBoundingClientRect()
+    const { left, top } = canvas.value.getBoundingClientRect();
     const mouseX = e.clientX - left;
+    mouseY.value = (e.clientY - top) * 2;
+
+    if (
+        mouseY.value < drawingArea.value.top || 
+        mouseY.value > drawingArea.value.bottom
+    ) {
+        mouseY.value = null;
+    }
 
     if ((mouseX * 2) < drawingArea.value.left || (mouseX * 2) > drawingArea.value.right) {
         isTooltip.value = false;
@@ -1228,6 +1302,12 @@ watch(() => mutableConfig.value.showDataLabels, (_) => {
     draw()
 });
 
+watch(() => mouseY.value, (newVal) => {
+    if (newVal) {
+        draw();
+    }
+})
+
 watch(() => mutableConfig.value.stacked, (_) => {
     datasetHasChanged.value = true;
     tooltipHasChanged.value = true;
@@ -1238,6 +1318,8 @@ function handleMouseLeave() {
     isTooltip.value = false;
     tooltipIndex.value = null;
     tooltipContent.value = '';
+    mouseY.value = null;
+    draw();
 }
 
 const responsiveObserver = ref(null);

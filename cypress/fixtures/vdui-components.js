@@ -476,6 +476,16 @@ export const components = [
                 value: 1280,
             },
         ],
+        config: {
+            style: {
+                chart: {
+                    title: {
+                        text: 'Title',
+                        subtitle: { text: 'Subtitle' }
+                    }
+                }
+            }
+        },
         wrapperClass: ".vue-ui-onion",
     },
     {
@@ -1342,6 +1352,9 @@ export const components = [
     {
         name: 'VueUiQuickChart',
         dataset: [1, 2, -3, 5, 8],
+        config: {
+            title: 'Title'
+        },
         wrapperClass: '.vue-ui-quick-chart'
     },
     {
@@ -1503,6 +1516,16 @@ export const components = [
                 ]
             },
         ],
+        config: {
+            style: {
+                chart: {
+                    title: {
+                        text: 'Title',
+                        subtitle: { text: 'Subtitle' }
+                    }
+                }
+            }
+        },
         wrapperClass: '.vue-ui-pcp'
     },
     {
