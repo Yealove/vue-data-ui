@@ -1,5 +1,8 @@
 /**
  * Fixtures for VueDataUi cy test
+ * 
+ * NOTE: changing datasets and configs will result in breaking tests.
+ * 
  */
 export const components = [
     {
@@ -1126,7 +1129,13 @@ export const components = [
             },
         ],
         wrapperClass: '.vue-ui-table-sparkline',
-        config: { responsiveBreakpoint: 200 }
+        config: { 
+            responsiveBreakpoint: 200,
+            title: {
+                text: 'Title',
+                subtitle: { text: 'Subtitle' }
+            }
+        }
     },
     {
         name: 'VueUiThermometer',
@@ -1151,6 +1160,16 @@ export const components = [
     {
         name: 'VueUiTiremarks',
         dataset: { percentage: 10 },
+        config: {
+            style: {
+                chart: {
+                    title: {
+                        text: 'Title',
+                        subtitle: { text: 'Subtitle' }
+                    }
+                }
+            }
+        },
         wrapperClass: '.vue-ui-tiremarks'
     },
     {
@@ -1257,6 +1276,16 @@ export const components = [
                 ]
             },
         ],
+        config: {
+            style: {
+                chart: {
+                    title: {
+                        text: 'Title',
+                        subtitle: { text: 'Subtitle' }
+                    }
+                }
+            }
+        },
         wrapperClass: '.vue-ui-treemap',
     },
     {
@@ -1330,6 +1359,16 @@ export const components = [
     {
         name: 'VueUiWheel',
         dataset: { percentage: 50 },
+        config: {
+            style: {
+                chart: {
+                    title: {
+                        text: 'Title',
+                        subtitle: { text: 'Subtitle' }
+                    }
+                }
+            }
+        },
         wrapperClass: '.vue-ui-wheel'
     },
     {
@@ -1400,7 +1439,24 @@ export const components = [
                     { name: "Dar es Salaam", value: 4.7 },
                     { name: "Nairobi", value: 4.4 },
                 ]
-            }],
+            }
+        ],
+        config: {
+            style: {
+                chart: {
+                    labels: {
+                        axis: {
+                            xLabel: 'x',
+                            yLabel: 'y'
+                        }
+                    },
+                    title: {
+                        text: 'Title',
+                        subtitle: { text: 'Subtitle' }
+                    }
+                }
+            }
+        },
         wrapperClass: '.vue-ui-strip-plot'
     },
     {
@@ -1428,6 +1484,16 @@ export const components = [
     {
         name: 'VueUiWordCloud',
         dataset: 'Lorem ipsum dolor sit amet Lorem Lorem Lorem sit sit ipsum',
+        config: {
+            style: {
+                chart: {
+                    title: {
+                        text: 'Title',
+                        subtitle: { text: 'Subtitle' }
+                    }
+                }
+            }
+        },
         wrapperClass: '.vue-ui-word-cloud'
     },
     {
@@ -1445,6 +1511,16 @@ export const components = [
                 type: 'line'
             }
         ],
+        config: {
+            style: {
+                chart: {
+                    title: {
+                        text: 'Title',
+                        subtitle: { text: 'Subtitle' }
+                    }
+                }
+            }
+        },
         wrapperClass: '.vue-ui-xy-canvas'
     },
     {
