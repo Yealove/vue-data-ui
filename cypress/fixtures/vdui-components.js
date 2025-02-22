@@ -108,21 +108,56 @@ export const components = [
                         breakdown: [
                             {
                                 name: "break 1.1.1",
-                                value: 50,
+                                value: 100,
                             },
                             {
                                 name: "break 1.1.2",
-                                value: 25,
+                                value: 50,
                             },
                             {
                                 name: "break 1.1.3",
+                                value: 50,
+                            },
+                        ],
+                    },
+                ],
+            },
+            {
+                name: "Root2",
+                branches: [
+                    {
+                        name: "branch 2.1",
+                        value: 100,
+                        breakdown: [
+                            {
+                                name: "break 2.1.1",
                                 value: 25,
+                            },
+                            {
+                                name: "break 2.1.2",
+                                value: 25,
+                            },
+                            {
+                                name: "break 2.1.3",
+                                value: 50,
                             },
                         ],
                     },
                 ],
             },
         ],
+        config: {
+            style: {
+                chart: {
+                    layout: {
+                        title: {
+                            text: 'Title',
+                            subtitle: { text: 'Subtitle' }
+                        }
+                    }
+                }
+            }
+        },
         wrapperClass: ".vue-ui-chestnut",
     },
     {
@@ -138,7 +173,29 @@ export const components = [
     }, wrapperClass: ".vue-ui-digits" },
     {
         name: "VueUiDonut",
-        dataset: [{ name: "S", values: [1] }],
+        dataset: [
+            { name: "A", values: [1], comment: 'C-A' },
+            { name: "B", values: [2], comment: 'C-B' },
+            { name: "C", values: [3], comment: 'C-C' }
+        ],
+        config: {
+            style: {
+                chart: {
+                    comments: {
+                        show: true
+                    },
+                    layout: {
+                        donut: {
+                            useShadow: true
+                        }
+                    },
+                    title: {
+                        text: 'Title',
+                        subtitle: { text: 'Subtitle' }
+                    }
+                }
+            }
+        },
         wrapperClass: ".vue-ui-donut",
     },
     {
@@ -161,6 +218,25 @@ export const components = [
                 values: [5, null, 5, 5, 5, 5],
             },
         ],
+        config: {
+            style: {
+                chart: {
+                    layout: {
+                        grid: {
+                            xAxis: {
+                                dataLabels: {
+                                    values: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
+                                }
+                            }
+                        }
+                    },
+                    title: {
+                        text: 'Title',
+                        subtitle: { text: 'Subtitle' }
+                    }
+                }
+            }
+        },
         wrapperClass: ".vue-ui-donut-evolution",
     },
     {
@@ -188,12 +264,29 @@ export const components = [
             base: 100,
             value: 0,
             series: [
-                { from: -100, to: -70, name: "series 1", nameOffsetRatio: 1 },
-                { from: -70, to: -35, name: "series 2", nameOffsetRatio: 1 },
-                { from: -35, to: 0, name: "series 3", nameOffsetRatio: 1 },
-                { from: 0, to: 50, name: "series 4", nameOffsetRatio: 1 },
-                { from: 50, to: 100, name: "series 5" },
+                { from: -100, to: -50, name: "A"},
+                { from: -50, to: 0, name: "B" },
+                { from: 0, to: 50, name: "C" },
+                { from: 50, to: 100, name: "D" },
             ],
+        },
+        config: {
+            style: {
+                chart: {
+                    layout: {
+                        indicatorArc: {
+                            show: true
+                        },
+                        segmentSeparators: {
+                            show: true
+                        }
+                    },
+                    title: {
+                        text: 'Title',
+                        subtitle: { text: 'Subtitle' }
+                    }
+                }
+            }
         },
         wrapperClass: ".vue-ui-gauge",
     },
@@ -202,7 +295,7 @@ export const components = [
         dataset: (function makeDs() {
             const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
             const arr = [];
-            const dsLen = 26;
+            const dsLen = 13;
             const serieLen = days.length;
             for (let i = 0; i < serieLen; i += 1) {
                 const values = [];
@@ -216,6 +309,33 @@ export const components = [
             }
             return arr;
         })(),
+        config: {
+            style: {
+                layout: {
+                    cells: {
+                        value: {
+                            show: true
+                        }
+                    },
+                    dataLabels: {
+                        xAxis: {
+                            show: true,
+                            values: (function IIFE(){
+                                const arr = [];
+                                for(let i = 0; i < 13; i += 1) {
+                                    arr.push(i)
+                                }
+                                return arr
+                            })()
+                        }
+                    }
+                },
+                title: {
+                    text: 'Title',
+                    subtitle: { text: 'Subtitle' }
+                }
+            }
+        },
         wrapperClass: ".vue-ui-heatmap",
     },
     { name: "VueUiKpi", dataset: 100, wrapperClass: ".vue-ui-kpi" },
@@ -510,6 +630,31 @@ export const components = [
                 })(10, 10),
             },
         ],
+        config: {
+            style: {
+                chart: {
+                    layout: {
+                        grid: {
+                            graduations: { steps: 5 },
+                            xAxis: { name: 'x' },
+                            yAxis: { name: 'y' },
+                        },
+                        labels: {
+                            quadrantLabels: {
+                                tl: { text: 'TL' },
+                                tr: { text: 'TR' },
+                                br: { text: 'BR' },
+                                bl: { text: 'BL' }
+                            }
+                        }
+                    },
+                    title: {
+                        text: 'Title',
+                        subtitle: { text: 'Subtitle' }
+                    }
+                }
+            }
+        },
         wrapperClass: ".vue-ui-quadrant",
     },
     {
@@ -543,6 +688,21 @@ export const components = [
                     target: 100,
                 },
             ],
+        },
+        config: {
+            style: {
+                chart: {
+                    layout: {
+                        grid: {
+                            graduations: 3
+                        }
+                    },
+                    title: {
+                        text: 'Title',
+                        subtitle: { text: 'Subtitle' }
+                    }
+                }
+            }
         },
         wrapperClass: ".vue-ui-radar",
     },
@@ -665,6 +825,16 @@ export const components = [
                 values: [25, 1],
             },
         ],
+        config: {
+            style: {
+                chart: {
+                    title: {
+                        text: 'Title',
+                        subtitle: { text: 'Subtitle' }
+                    }
+                }
+            }
+        },
         wrapperClass: ".vue-ui-rings",
     },
     {
