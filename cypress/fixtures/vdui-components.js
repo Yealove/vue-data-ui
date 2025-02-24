@@ -1654,24 +1654,52 @@ export const components = [
                 ],
             },
         ],
+        config: {
+            style: {
+                chart: {
+                    title: {
+                        text: 'Title',
+                        subtitle: { text: 'Subtitle' }
+                    }
+                }
+            }
+        },
         wrapperClass: ".vue-ui-vertical-bar",
     },
     {
         name: "VueUiWaffle",
         dataset: [
             {
-                name: "Lorem Ipsum",
-                values: [100.27],
+                name: "A",
+                values: [1],
             },
             {
-                name: "Dolor Amet",
-                values: [66.3367],
+                name: "B",
+                values: [2],
             },
             {
-                name: "Dignissimos Ducimus",
-                values: [44.25],
+                name: "C",
+                values: [3],
             },
         ],
+        config: {
+            style: {
+                chart: {
+                    layout: {
+                        grid: {
+                            size: 10
+                        },
+                        labels: {
+                            captions: { show: true, showSerieName: true }
+                        }
+                    },
+                    title: {
+                        text: 'Title',
+                        subtitle: { text: 'Subtitle' }
+                    }
+                }
+            }
+        },
         wrapperClass: ".vue-ui-waffle",
     },
     {

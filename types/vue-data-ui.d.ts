@@ -1313,10 +1313,13 @@ declare module "vue-data-ui" {
                 layout?: {
                     wheel?: {
                         ticks?: {
+                            type?: 'classic' | 'arc';
                             rounded?: boolean;
                             inactiveColor?: string;
                             activeColor?: string;
                             sizeRatio?: number;
+                            quantity?: number;
+                            strokeWidth?: number;
                             gradient?: {
                                 show?: boolean;
                                 shiftHueIntensity?: number;

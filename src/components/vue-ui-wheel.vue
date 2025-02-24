@@ -9,6 +9,7 @@ import {
     createUid,
     dataLabel,
     error,
+    makeDonut,
     objectIsEmpty,
     shiftHue,
     XMLNS
@@ -189,22 +190,37 @@ function useAnimation(targetValue) {
     animate()
 }
 
+const tickAmount = computed(() => {
+    return Math.max(100, FINAL_CONFIG.value.style.chart.layout.wheel.ticks.quantity);
+});
+
+const percentageToTickAmount = computed(() => 100 / tickAmount.value);
+
 const ticks = computed(() => {
     const tickArray = [];
-    const tickAmount = 100;
-    for(let i = 0; i < tickAmount; i += 1) {
-        const color = activeValue.value > i ? FINAL_CONFIG.value.style.chart.layout.wheel.ticks.activeColor : FINAL_CONFIG.value.style.chart.layout.wheel.ticks.inactiveColor;
-        const { x: x1, y: y1 } = calcTickStart((svg.value.size / tickAmount) * i);
-        const { x: x2, y: y2 } = calcTickStart((svg.value.size / tickAmount) * i, FINAL_CONFIG.value.style.chart.layout.wheel.ticks.sizeRatio);
+    for(let i = 0; i < tickAmount.value; i += 1) {
+        const color = activeValue.value > (i * percentageToTickAmount.value) ? FINAL_CONFIG.value.style.chart.layout.wheel.ticks.activeColor : FINAL_CONFIG.value.style.chart.layout.wheel.ticks.inactiveColor;
+        const { x: x1, y: y1 } = calcTickStart((svg.value.size / tickAmount.value) * i);
+        const { x: x2, y: y2 } = calcTickStart((svg.value.size / tickAmount.value) * i, FINAL_CONFIG.value.style.chart.layout.wheel.ticks.sizeRatio);
         tickArray.push({
             x1,
             y1,
             x2,
             y2,
-            color: FINAL_CONFIG.value.style.chart.layout.wheel.ticks.gradient.show ? shiftHue(color, i / tickAmount * (FINAL_CONFIG.value.style.chart.layout.wheel.ticks.gradient.shiftHueIntensity / 100)) : color
+            color: FINAL_CONFIG.value.style.chart.layout.wheel.ticks.gradient.show ? shiftHue(color, (i * percentageToTickAmount.value) / tickAmount.value * (FINAL_CONFIG.value.style.chart.layout.wheel.ticks.gradient.shiftHueIntensity / 100)) : color
         })
     }
     return tickArray
+});
+
+const arcTicks = computed(() => {
+    return makeDonut({ series: ticks.value.map(t => {
+        return {
+            name: '',
+            value: 1,
+            color: t.color
+        }
+    })}, wheel.value.centerX, wheel.value.centerY, wheel.value.radius, wheel.value.radius, 1.99999, 2, 1, 360, 105.25, wheel.value.radius * (1 - FINAL_CONFIG.value.style.chart.layout.wheel.ticks.sizeRatio))
 });
 
 const isFullscreen = ref(false)
@@ -324,19 +340,30 @@ defineExpose({
                 <slot name="chart-background"/>
             </foreignObject>
 
+            <template v-if="FINAL_CONFIG.style.chart.layout.wheel.ticks.type === 'classic'">
+                <line
+                    data-cy="wheel-tick"
+                    v-for="(tick, i) in ticks"
+                    :x1="tick.x1"
+                    :x2="tick.x2"
+                    :y1="tick.y1"
+                    :y2="tick.y2"
+                    :stroke="tick.color"
+                    :stroke-width="(FINAL_CONFIG.style.chart.layout.wheel.ticks.strokeWidth / 360) * Math.min(svg.width, svg.height)"
+                    :stroke-linecap="FINAL_CONFIG.style.chart.layout.wheel.ticks.rounded ? 'round' : 'butt'"
+                    :class="{ 'vue-ui-tick-animated': FINAL_CONFIG.style.chart.animation.use && (i * percentageToTickAmount) <= activeValue }"
+                />
+            </template>
             
-            <line
-                data-cy="wheel-tick"
-                v-for="(tick, i) in ticks"
-                :x1="tick.x1"
-                :x2="tick.x2"
-                :y1="tick.y1"
-                :y2="tick.y2"
-                :stroke="tick.color"
-                :stroke-width="(5 / 360) * Math.min(svg.width, svg.height)"
-                :stroke-linecap="FINAL_CONFIG.style.chart.layout.wheel.ticks.rounded ? 'round' : 'butt'"
-                :class="{ 'vue-ui-tick-animated': FINAL_CONFIG.style.chart.animation.use && i <= activeValue }"
-            />
+            <template v-else>
+                <path 
+                    v-for="(arc, i) in arcTicks"
+                    :d="arc.arcSlice"
+                    :fill="arc.color"
+                    :class="{ 'vue-ui-tick-animated': FINAL_CONFIG.style.chart.animation.use && (i * percentageToTickAmount) <= activeValue }"
+                /> 
+            </template>
+
             <circle
                 data-cy="inner-circle"
                 v-if="FINAL_CONFIG.style.chart.layout.innerCircle.show"

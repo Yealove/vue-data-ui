@@ -1224,10 +1224,13 @@ export function useConfig() {
                 layout: {
                     wheel: {
                         ticks: {
+                            type: 'classic', // or 'arc'
                             rounded: true,
                             inactiveColor: COLOR_GREY_LIGHT,
                             activeColor: COLOR_BLUE,
                             sizeRatio: 0.9,
+                            quantity: 100, // min 100
+                            strokeWidth: 5,
                             gradient: {
                                 show: true,
                                 shiftHueIntensity: 100
