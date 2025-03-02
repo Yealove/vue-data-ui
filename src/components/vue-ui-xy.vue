@@ -101,7 +101,19 @@
             </template>
         </UserOptions>
         
-        <svg xmlns="http://www.w3.org/2000/svg" v-if="isDataset" :class="{ 'vue-data-ui-fullscreen--on': isFullscreen, 'vue-data-ui-fulscreen--off': !isFullscreen }" data-cy="xy-svg" width="100%" :viewBox="viewBox" class="vue-ui-xy-svg" :style="`background: transparent; color:${FINAL_CONFIG.chart.color}; font-family:${FINAL_CONFIG.chart.fontFamily}`">
+        <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            v-if="isDataset" 
+            :class="{ 'vue-data-ui-fullscreen--on': isFullscreen, 'vue-data-ui-fulscreen--off': !isFullscreen }" 
+            data-cy="xy-svg" 
+            width="100%" 
+            :viewBox="viewBox" 
+            class="vue-ui-xy-svg" 
+            :style="`background: transparent; color:${FINAL_CONFIG.chart.color}; font-family:${FINAL_CONFIG.chart.fontFamily}`"
+            :aria-label="chartAriaLabel"
+            role="img"
+            aria-live="polite"
+        >
             <PackageVersion />
 
             <!-- BACKGROUND SLOT -->
@@ -948,13 +960,26 @@
 
                 <!-- Y LABELS MOUSE TRAPS -->
                 <template v-if="mutableConfig.useIndividualScale && !mutableConfig.isStacked">
+                    <defs>
+                        <linearGradient
+                            v-for="(trap, i) in allScales"
+                            :id="`individual_scale_gradient_${uniqueId}_${i}`"
+                            x1="0%"
+                            x2="100%"
+                            y1="0%"
+                            y2="0%"
+                        >
+                            <stop offset="0%" :stop-color="FINAL_CONFIG.chart.backgroundColor" stop-opacity="0"/>
+                            <stop offset="100%" :stop-color="trap.color" stop-opacity="0.2"/>
+                        </linearGradient>
+                    </defs>
                     <rect 
-                        v-for="trap in allScales"
+                        v-for="(trap, i) in allScales"
                         :x="trap.x - FINAL_CONFIG.chart.grid.labels.yAxis.labelWidth + xPadding"
                         :y="drawingArea.top"
                         :width="FINAL_CONFIG.chart.grid.labels.yAxis.labelWidth"
                         :height="drawingArea.height < 0 ? 10 : drawingArea.height"
-                        :fill="selectedScale === trap.id ? setOpacity(trap.color, 20) : 'transparent'"
+                        :fill="selectedScale === trap.id ? `url(#individual_scale_gradient_${uniqueId}_${i})` : 'transparent'"
                         @mouseenter="selectedScale = trap.id"
                         @mouseleave="selectedScale = null"
                     />
@@ -1463,6 +1488,11 @@ export default {
         }
     },
     computed: {
+        chartAriaLabel() {
+            const titleText = this.FINAL_CONFIG.chart.title.text || 'Chart visualization';
+            const subtitleText = this.FINAL_CONFIG.chart.title.subtitle.text || '';
+            return `${titleText}. ${subtitleText}`;
+        },
         optimize() {
             return {
                 linePlot: this.maxSeries > this.FINAL_CONFIG.line.dot.hideAboveMaxSerieLength
