@@ -211,6 +211,15 @@ declare module "vue-data-ui" {
             table?: string;
             tooltip?: string;
         };
+        // html2canvas options
+        print?: {
+            allowTaint?: boolean;
+            backgroundColor?: string;
+            useCORS?: boolean;
+            onclone?: null | ((doc: Document) => void);
+            scale?: number;
+            logging?: boolean;
+        };
     };
 
     export type ChartTableCell = {
@@ -5115,6 +5124,14 @@ declare module "vue-data-ui" {
             img?: string;
             fullscreen?: string;
             annotator?: string;
+        };
+        userOptionsPrint?: {
+            allowTaint?: boolean;
+            backgroundColor?: string;
+            useCORS?: boolean;
+            onclone?: null | ((doc: Document) => void),
+            scale?: number;
+            logging?: boolean;
         };
         showUserOptionsOnChartHover?: boolean;
         keepUserOptionsStateOnChartLeave?: boolean;
