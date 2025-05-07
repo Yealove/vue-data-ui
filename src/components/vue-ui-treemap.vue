@@ -378,6 +378,13 @@ function zoom(rect) {
     }
 }
 
+function canDrill(rect) {
+    const node = findNodeById(rect.id)
+    if (node?.children?.length) return true
+    if (rect.parentId) return true
+    return false
+}
+
 const breadcrumbs = computed(() => {
     const crumbs = [
         { id: null,  label: 'All' }
@@ -596,6 +603,15 @@ function toggleAnnotator() {
     isAnnotator.value = !isAnnotator.value;
 }
 
+const activeCrumbIndex = ref(null)
+
+function activateHomeIcon(id) {
+    activeCrumbIndex.value = id
+}
+function deactivateHomeIcon() {
+    activeCrumbIndex.value = null
+}
+
 defineExpose({
     getData,
     generateCsv,
@@ -709,23 +725,31 @@ defineExpose({
 
         <nav class="vue-ui-treemap-breadcrumbs" v-if="breadcrumbs.length > 1" data-html2canvas-ignore>
             <span 
-                v-for="(crumb, i) in breadcrumbs" 
+                v-for="(crumb, i) in breadcrumbs"
+                role="button"
+                :tabindex="i < breadcrumbs.length - 1 ? 0 : undefined"
                 :key="crumb.id || 'root'" 
                 @click="i === breadcrumbs.length - 1 ? () => {} : zoom(crumb.node)"
+                @keydown.enter.prevent="i === breadcrumbs.length - 1 ? undefined : zoom(crumb.node)"
+                @keydown.space.prevent="i === breadcrumbs.length - 1 ? undefined : zoom(crumb.node)"
                 class="vue-ui-treemap-crumb"
                 :data-last-crumb="i === breadcrumbs.length - 1"
                 :style="{
                     color: FINAL_CONFIG.style.chart.color
                 }"
+                @mouseenter="activateHomeIcon(i)"
+                @mouseleave="deactivateHomeIcon"
+                @focus="activateHomeIcon(i)"
+                @blur="deactivateHomeIcon"
             >
                 <span 
                     class="vue-ui-treemap-crumb-unit"
                 >
                     <span class="vue-ui-treemap-crumb-unit-label">
-                        <slot name="breadcrumb-label" v-bind="{ crumb, isRoot: i === 0 }">
+                        <slot name="breadcrumb-label" v-bind="{ crumb, isRoot: i === 0, isFocus: activeCrumbIndex === i }">
                             <template v-if="i === 0">
                                 <div style="width: 24px; display:flex; align-items:center">
-                                    <BaseIcon name="home" :stroke="FINAL_CONFIG.style.chart.color"/>
+                                    <BaseIcon :name="activeCrumbIndex === 0 ? 'homeFilled' : 'home'" :stroke="FINAL_CONFIG.style.chart.color"/>
                                 </div>
                             </template>
                             <template v-else>
@@ -782,7 +806,12 @@ defineExpose({
                     })"
                     @mouseleave="selectedRect = null; isTooltip = false"
                     :style="`opacity:${selectedRect ? selectedRect.id === rect.id ? 1 : FINAL_CONFIG.style.chart.layout.rects.selected.unselectedOpacity : 1}`"
-                    class="vue-ui-treemap-rect"
+                    :class="[
+                        'vue-ui-treemap-rect',
+                        canDrill(rect)
+                        ? 'vue-data-ui-zoom-plus'
+                        : (isZoom ? 'vue-data-ui-zoom-minus' : '')
+                    ]"
                 />
 
                 <foreignObject
