@@ -19,7 +19,6 @@ import {
 import { throttle } from '../canvas-lib';
 import Accordion from "./vue-ui-accordion.vue";
 import DataTable from '../atoms/DataTable.vue';
-import MonoSlicer from '../atoms/MonoSlicer.vue';
 import { useNestedProp } from '../useNestedProp';
 import { usePrinter } from '../usePrinter';
 import { useResponsive } from '../useResponsive';
@@ -29,6 +28,8 @@ import Tooltip from '../atoms/Tooltip.vue';
 import PenAndPaper from '../atoms/PenAndPaper.vue';
 import { useUserOptionState } from '../useUserOptionState';
 import { useChartAccessibility } from '../useChartAccessibility';
+import usePanZoom from '../usePanZoom';
+import { positionWords } from '../wordcloud';
 
 const { vue_ui_word_cloud: DEFAULT_CONFIG } = useConfig();
 
@@ -124,49 +125,35 @@ watch(() => props.config, (_newCfg) => {
     mutableConfig.value.showTooltip = FINAL_CONFIG.value.style.chart.tooltip.show;
 }, { deep: true });
 
-const chartSlicer = ref(null);
-const slicer = ref(0);
-
 const svg = ref({
     width: FINAL_CONFIG.value.style.chart.width,
     height: FINAL_CONFIG.value.style.chart.height,
     maxFontSize: FINAL_CONFIG.value.style.chart.words.maxFontSize,
-    minFontSize: FINAL_CONFIG.value.style.chart.words.minFontSize
-});
-
-const handleResize = throttle(() => {
-    const { width, height } = useResponsive({
-        chart: wordCloudChart.value,
-        title: FINAL_CONFIG.value.style.chart.title.text ? chartTitle.value : null,
-        slicer: FINAL_CONFIG.value.style.chart.zoom.show && chartSlicer.value,
-        source: source.value
-    });
-
-    requestAnimationFrame(() => {
-        svg.value.width = width;
-        svg.value.height = height;
-        nextTick(generateWordCloud);
-    });
-});
-
-watch(() => slicer.value, () => {
-    debounceUpdateCloud()
+    minFontSize: FINAL_CONFIG.value.style.chart.words.minFontSize,
+    bold: FINAL_CONFIG.value.style.chart.words.bold
 });
 
 const debounceUpdateCloud = debounce(() => {
     generateWordCloud()
 }, 10);
 
-function refreshSlicer() {
-    slicer.value = wordMin.value;
-}
+const handleResize = throttle(() => {
+    const { width, height } = useResponsive({
+        chart: wordCloudChart.value,
+        title: FINAL_CONFIG.value.style.chart.title.text ? chartTitle.value : null,
+        source: source.value
+    });
+
+    requestAnimationFrame(() => {
+        svg.value.width = width;
+        svg.value.height = height;
+        nextTick(debounceUpdateCloud)
+    });
+});
 
 const resizeObserver = ref(null);
 
-onMounted(() => {
-    prepareChart();
-    refreshSlicer();
-});
+onMounted(prepareChart);
 
 function prepareChart() {
     if (objectIsEmpty(props.dataset)) {
@@ -223,67 +210,16 @@ function measureTextSize(text, fontSize, fontFamily = "Arial") {
     };
 }
 
-function isOverlapping(a, b) {
-    return (
-        a.x < b.x + b.width &&
-        a.x + a.width > b.x &&
-        a.y < b.y + b.height &&
-        a.y + a.height > b.y
-    );
-}
-
-function positionWords(words, width, height) {
-    const positionedWords = [];
-    const bounds = { x: -width / 2, y: -height / 2, width, height };
-    const centerX = 0;
-    const centerY = 0;
-
-    words.forEach(word => {
-        let isPlaced = false;
-        for (let i = 0; i < Math.max(width, height) / 2 && !isPlaced; i += FINAL_CONFIG.value.style.chart.words.packingWeight) {
-            for (let theta = 0; theta < 360 && !isPlaced; theta += FINAL_CONFIG.value.style.chart.words.packingWeight) {
-                const rad = (theta * Math.PI) / 180;
-                const x = centerX + i * Math.cos(rad) - word.width / 2;
-                const y = centerY + i * Math.sin(rad) - word.height / 2;
-
-                const testPosition = { ...word, x, y };
-
-                const isInsideBounds =
-                    testPosition.x >= bounds.x &&
-                    testPosition.y >= bounds.y &&
-                    testPosition.x + testPosition.width <= bounds.x + bounds.width &&
-                    testPosition.y + testPosition.height <= bounds.y + bounds.height;
-
-                const isOverlap = positionedWords.some(w => isOverlapping(testPosition, w));
-
-                if (isInsideBounds && !isOverlap) {
-                    positionedWords.push(testPosition);
-                    isPlaced = true;
-                }
-            }
-        }
-    });
-
-    return positionedWords;
-}
-
 const positionedWords = ref([]);
 
 watch(() => props.dataset, generateWordCloud, { immediate: true });
 
-const wordMin = computed(() => {
-    return Math.round(Math.min(...drawableDataset.value.map(w => w.value)));
-})
-const wordMax = computed(() => {
-    return Math.round(Math.max(...drawableDataset.value.map(w => w.value)));
-})
-
 function generateWordCloud() {
-    const values = [...drawableDataset.value].filter(w => w.value >= slicer.value).map(d => d.value);
+    const values = [...drawableDataset.value].map(d => d.value);
     const maxValue = Math.max(...values);
     const minValue = Math.min(...values);
 
-    const scaledWords = [...drawableDataset.value].filter(w => w.value >= slicer.value).map((word, i) => {
+    const scaledWords = [...drawableDataset.value].map((word, i) => {
         let fontSize = ((word.value - minValue) / (maxValue - minValue)) * (svg.value.maxFontSize - svg.value.minFontSize) + svg.value.minFontSize;
         fontSize = isNaN(fontSize) ? svg.value.minFontSize : fontSize;
         const size = measureTextSize(word.name, fontSize);
@@ -297,7 +233,11 @@ function generateWordCloud() {
         };
     });
 
-    positionedWords.value = positionWords(scaledWords, svg.value.width, svg.value.height).sort((a, b) => b.fontSize - a.fontSize);
+    positionedWords.value = positionWords({
+        words: scaledWords,
+        svg: svg.value,
+        proximity: FINAL_CONFIG.value.style.chart.words.proximity,
+    });
 }
 
 const table = computed(() => {
@@ -391,6 +331,15 @@ const isAnnotator = ref(false);
 function toggleAnnotator() {
     isAnnotator.value = !isAnnotator.value;
 }
+
+const active = computed(() => !isAnnotator.value && FINAL_CONFIG.value.style.chart.zoom.show)
+
+const { viewBox } = usePanZoom(svgRef, {
+    x: 0,
+    y: 0,
+    width: svg.value.width <= 0 ? 10 : svg.value.width,
+    height: svg.value.height <= 0 ? 10 : svg.value.height,
+}, 1, active)
 
 defineExpose({
     getData,
@@ -526,8 +475,9 @@ function useTooltip(word) {
             ref="svgRef"
             :class="{ 'vue-data-ui-fullscreen--on': isFullscreen, 'vue-data-ui-fulscreen--off': !isFullscreen  }" 
             v-if="isDataset"
-            :xmlns="XMLNS" :viewBox="`0 0 ${svg.width <= 0 ? 10 : svg.width} ${svg.height <= 0 ? 10 : svg.height}`"
-            :style="`overflow:visible;background:transparent;`"
+            :xmlns="XMLNS"
+            :viewBox="`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`"
+            :style="`overflow:hidden;background:transparent;`"
         >
             <PackageVersion />
 
@@ -594,27 +544,6 @@ function useTooltip(word) {
                 <slot name="tooltip-after" v-bind="{...dataTooltipSlot}"></slot>
             </template>
         </Tooltip>
-
-        <div ref="chartSlicer" :style="`width:100%;background:transparent`" data-html2canvas-ignore>
-            <MonoSlicer
-                v-if="FINAL_CONFIG.style.chart.zoom.show && wordMin < wordMax"
-                v-model:value="slicer"
-                :min="wordMin"
-                :max="wordMax"
-                :textColor="FINAL_CONFIG.style.chart.color"
-                :inputColor="FINAL_CONFIG.style.chart.zoom.color"
-                :selectColor="FINAL_CONFIG.style.chart.zoom.highlightColor"
-                :useResetSlot="FINAL_CONFIG.style.chart.zoom.useResetSlot"
-                :background="FINAL_CONFIG.style.chart.zoom.color"
-                :borderColor="FINAL_CONFIG.style.chart.backgroundColor"
-                :source="FINAL_CONFIG.style.chart.width"
-                @reset="refreshSlicer"
-            >
-                <template #reset-action="{ reset }">
-                    <slot name="reset-action" v-bind="{ reset }"/>
-                </template>
-            </MonoSlicer>
-        </div>
 
         <div v-if="$slots.source" ref="source" dir="auto">
             <slot name="source" />

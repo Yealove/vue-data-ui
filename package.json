@@ -1,7 +1,7 @@
 {
   "name": "vue-data-ui",
   "private": false,
-  "version": "2.6.48",
+  "version": "2.6.50",
   "type": "module",
   "description": "A user-empowering data visualization Vue 3 components library for eloquent data storytelling",
   "keywords": [
@@ -103,7 +103,7 @@
     "remove-attr": "^0.0.13",
     "sass": "^1.57.1",
     "simple-git": "^3.24.0",
-    "vite": "^6.3.4",
+    "vite": "^6.3.5",
     "vitest": "^3.1.1",
     "vue": "^3.5.13"
   }
