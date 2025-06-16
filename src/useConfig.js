@@ -3673,6 +3673,8 @@ export function useConfig() {
             fullscreen: true,
             annotator: true
         }),
+        nodeCategories: {},
+        nodeCategoryColors: {},
         style: {
             fontFamily: 'inherit',
             chart: {
@@ -3866,12 +3868,14 @@ export function useConfig() {
             annotator: true,
             tooltip: true,
         }),
+        nodeCategories: {},
+        nodeCategoryColors: {},
         style: {
             fontFamily: 'inherit',
             chart: {
                 backgroundColor: COLOR_WHITE,
                 color: COLOR_BLACK,
-                padding: PADDING([12, 12, 0, 12]),
+                padding: PADDING([12, 12, 12, 12]),
                 title: TITLE,
                 tooltip: {
                     ...TOOLTIP,
@@ -3882,6 +3886,9 @@ export function useConfig() {
                         to: 'To:',
                         percentOfTotal: 'Percent of total:'
                     }
+                },
+                legend: {
+                    ...LEGEND,
                 },
                 nodes: {
                     gap: 10,

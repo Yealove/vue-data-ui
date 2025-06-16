@@ -9,28 +9,128 @@ import { useArena } from "../src/useArena";
 const { local, build, vduiLocal, vduiBuild, toggleTable } = useArena()
 
 const dataset = ref([
-    // Sources
-    ['Households', 'Collection Centers', 40],
-    ['Restaurants', 'Collection Centers', 20],
-    ['Industries', 'Collection Centers', 30],
-    ['Littering', 'Environment', 10],
+  // root
+  ['Config', 'theme', 1],
+  ['Config', 'customPalette', 1],
+  ['Config', 'userOptions', 1],
+  ['Config', 'nodeCategories', 1],
+  ['Config', 'nodeCategoryColors', 1],
+  ['Config', 'style', 1],
+  ['Config', 'table', 1],
 
-    // Collection to Processing
-    ['Collection Centers', 'Recycling Plants', 50],
-    ['Collection Centers', 'Landfills', 25],
-    ['Collection Centers', 'Incineration', 15],
+  // userOptions
+  ['userOptions', 'show', 1],
+  ['userOptions', 'showOnChartHover', 1],
+  ['userOptions', 'position', 1],
+  ['userOptions', 'buttons', 1],
+  ['buttons', 'pdf', 1],
+  ['buttons', 'csv', 1],
+  ['buttons', 'img', 1],
+  ['buttons', 'table', 1],
+  ['buttons', 'fullscreen', 1],
+  ['buttons', 'annotator', 1],
+  ['buttons', 'tooltip', 1],
+  ['userOptions', 'buttonTitles', 1],
 
-    // Processing to Final Outcome
-    ['Recycling Plants', 'Recycled Products', 30],
-    ['Recycling Plants', 'Exported Waste', 20],
-    ['Landfills', 'Methane Emission', 10],
-    ['Landfills', 'Buried Waste', 15],
-    ['Incineration', 'Energy Recovery', 10],
-    ['Incineration', 'Air Pollution', 5],
+  // style
+  ['style', 'fontFamily', 1],
+  ['style', 'chart', 1],
 
-    // Direct Environment impact
-    ['Environment', 'Ocean Pollution', 6],
-    ['Environment', 'Soil Contamination', 4],
+  // chart
+  ['chart', 'backgroundColor', 1],
+  ['chart', 'color', 1],
+  ['chart', 'padding', 1],
+  ['chart', 'title', 1],
+  ['chart', 'tooltip', 1],
+  ['chart', 'legend', 1],
+  ['chart', 'nodes', 1],
+  ['chart', 'links', 1],
+
+  // padding
+  ['padding', 'top', 1],
+  ['padding', 'right', 1],
+  ['padding', 'bottom', 1],
+  ['padding', 'left', 1],
+
+  // title
+  ['title', 'text', 1],
+  ['title', 'subtitle', 1],
+  ['subtitle', 'text', 1],
+  ['title', 'cy', 1],
+
+  // tooltip
+  ['tooltip', 'show', 1],
+  ['tooltip', 'fontSize', 1],
+  ['tooltip', 'backgroundColor', 1],
+  ['tooltip', 'color', 1],
+  ['tooltip', 'borderColor', 1],
+  ['tooltip', 'borderWidth', 1],
+  ['tooltip', 'borderRadius', 1],
+  ['tooltip', 'backgroundOpacity', 1],
+  ['tooltip', 'position', 1],
+  ['tooltip', 'offsetY', 1],
+  ['tooltip', 'showPercentage', 1],
+  ['tooltip', 'roundingPercentage', 1],
+  ['tooltip', 'translations', 1],
+  ['translations', 'from', 1],
+  ['translations', 'to', 1],
+  ['translations', 'percentOfTotal', 1],
+
+  // legend
+  ['legend', 'show', 1],
+  ['legend', 'backgroundColor', 1],
+  ['legend', 'color', 1],
+  ['legend', 'fontSize', 1],
+  ['legend', 'paddingBottom', 1],
+  ['legend', 'paddingTop', 1],
+  ['legend', 'bold', 1],
+  ['legend', 'cy', 1],
+
+  // nodes
+  ['nodes', 'gap', 1],
+  ['nodes', 'minHeight', 1],
+  ['nodes', 'width', 1],
+  ['nodes', 'labels', 1],
+  ['nodes', 'stroke', 1],
+  ['nodes', 'strokeWidth', 1],
+
+  // labels
+  ['labels', 'fontSize', 1],
+  ['labels', 'abbreviation', 1],
+  ['labels', 'prefix', 1],
+  ['labels', 'suffix', 1],
+  ['labels', 'rounding', 1],
+  ['labels', 'formatter', 1],
+
+  // abbreviation
+  ['abbreviation', 'use', 1],
+  ['abbreviation', 'length', 1],
+
+  // links
+  ['links', 'width', 1],
+  ['links', 'opacity', 1],
+  ['links', 'stroke', 1],
+  ['links', 'strokeWidth', 1],
+
+  // table
+  ['table', 'show', 1],
+  ['table', 'responsiveBreakpoint', 1],
+  ['table', 'columnNames', 1],
+  ['columnNames', 'source', 1],
+  ['columnNames', 'target', 1],
+  ['columnNames', 'value', 1],
+  ['table', 'th', 1],
+  ['table', 'td', 1],
+
+  // th
+  ['th', 'backgroundColor', 1],
+  ['th', 'color', 1],
+  ['th', 'outline', 1],
+
+  // td
+  ['td', 'backgroundColor', 1],
+  ['td', 'color', 1],
+  ['td', 'outline', 1],
 ]);
 
 const model = ref([
@@ -43,6 +143,11 @@ const model = ref([
     { key: 'userOptions.position', def: 'right', type: 'select', options: ['left', 'right'] },
     { key: 'userOptions.showOnChartHover', def: true, type: 'checkbox' },
     { key: 'userOptions.keepStateOnChartLeave', def: true, type: 'checkbox' },
+
+    { key: 'style.chart.padding.top', def: 12, type: 'number', min: 0, max: 100,},
+    { key: 'style.chart.padding.right', def: 12, type: 'number', min: 0, max: 100,},
+    { key: 'style.chart.padding.bottom', def: 12, type: 'number', min: 0, max: 100,},
+    { key: 'style.chart.padding.left', def: 12, type: 'number', min: 0, max: 100,},
 
     { key: 'userOptions.print.scale', def: 2, type: 'number', min: 1, max: 5 },
     { key: 'userOptions.print.allowTaint', def: true, type: 'checkbox' },
@@ -96,6 +201,160 @@ const config = computed(() => {
     return {
         theme: currentTheme.value,
         ...c,
+        nodeCategories: {
+  // top‐level
+  theme:                   'config',
+  customPalette:           'config',
+  userOptions:             'config',
+  nodeCategories:          'config',
+  nodeCategoryColors:      'config',
+  style:                   'config',
+  table:                   'config',
+
+  // userOptions
+  show:                    'userOptions',
+  showOnChartHover:        'userOptions',
+  position:                'userOptions',
+  buttons:                 'userOptions',
+  buttonTitles:            'userOptions',
+
+  // buttons
+  pdf:                     'userOptionsButtons',
+  csv:                     'userOptionsButtons',
+  img:                     'userOptionsButtons',
+  table:                   'userOptionsButtons',
+  fullscreen:              'userOptionsButtons',
+  annotator:               'userOptionsButtons',
+  tooltip:                 'userOptionsButtons',
+
+  // style
+  fontFamily:              'style',
+  chart:                   'style',
+
+  // chart
+  backgroundColor:         'chart',
+  color:                   'chart',
+  padding:                 'chart',
+  title:                   'chart',
+  tooltip:                 'chart',
+  legend:                  'chart',
+  nodes:                   'chart',
+  links:                   'chart',
+
+  // padding
+  top:                     'chartPadding',
+  right:                   'chartPadding',
+  bottom:                  'chartPadding',
+  left:                    'chartPadding',
+
+  // title
+  text:                    'chartTitle',
+  subtitle:                'chartTitle',
+  cy:                      'chartTitle',
+  // subtitle.text lives under the same category
+
+  // tooltip
+  show:                    'chartTooltip',
+  fontSize:                'chartTooltip',
+  backgroundColor:         'chartTooltip',
+  color:                   'chartTooltip',
+  borderColor:             'chartTooltip',
+  borderWidth:             'chartTooltip',
+  borderRadius:            'chartTooltip',
+  backgroundOpacity:       'chartTooltip',
+  position:                'chartTooltip',
+  offsetY:                 'chartTooltip',
+  showPercentage:          'chartTooltip',
+  roundingPercentage:      'chartTooltip',
+  translations:            'chartTooltip',
+  from:                    'chartTooltipTranslations',
+  to:                      'chartTooltipTranslations',
+  percentOfTotal:          'chartTooltipTranslations',
+
+  // legend
+  show:                    'chartLegend',
+  backgroundColor:         'chartLegend',
+  color:                   'chartLegend',
+  fontSize:                'chartLegend',
+  paddingBottom:           'chartLegend',
+  paddingTop:              'chartLegend',
+  bold:                    'chartLegend',
+  cy:                      'chartLegend',
+
+  // nodes
+  gap:                     'chartNodes',
+  minHeight:               'chartNodes',
+  width:                   'chartNodes',
+  labels:                  'chartNodes',
+  stroke:                  'chartNodes',
+  strokeWidth:             'chartNodes',
+
+  // labels
+  fontSize:                'chartLabels',
+  abbreviation:            'chartLabels',
+  prefix:                  'chartLabels',
+  suffix:                  'chartLabels',
+  rounding:                'chartLabels',
+  formatter:               'chartLabels',
+
+  // abbreviation
+  use:                     'chartLabelsAbbreviation',
+  length:                  'chartLabelsAbbreviation',
+
+  // links
+  width:                   'chartLinks',
+  opacity:                 'chartLinks',
+  stroke:                  'chartLinks',
+  strokeWidth:             'chartLinks',
+
+  // table
+  show:                    'table',
+  responsiveBreakpoint:    'table',
+  columnNames:             'table',
+  th:                      'table',
+  td:                      'table',
+
+  // columnNames
+  source:                  'tableColumnNames',
+  target:                  'tableColumnNames',
+  value:                   'tableColumnNames',
+
+  // th
+  backgroundColor:         'tableTh',
+  color:                   'tableTh',
+  outline:                 'tableTh',
+
+  // td
+  backgroundColor:         'tableTd',
+  color:                   'tableTd',
+  outline:                 'tableTd',
+},
+
+nodeCategoryColors: {
+  // top‐level
+  config:                 '#1f77b4',
+  userOptions:            '#ff7f0e',
+  userOptionsButtons:     '#2ca02c',
+  style:                  '#d62728',
+
+  // chart
+  chart:                  '#9467bd',
+  chartPadding:           '#8c564b',
+  chartTitle:             '#e377c2',
+  chartTooltip:           '#bcbd22',
+  chartTooltipTranslations:'#17becf',
+  chartLegend:            '#aec7e8',
+  chartNodes:             '#98df8a',
+  chartLabels:            '#ff9896',
+  chartLabelsAbbreviation:'#c5b0d5',
+  chartLinks:             '#c49c94',
+
+  // table
+  table:                  '#dbdb8d',
+  tableColumnNames:       '#9edae5',
+  tableTh:                '#393b79',
+  tableTd:                '#5254a3',
+},
         style: {
             ...c.style,
             chart: {
