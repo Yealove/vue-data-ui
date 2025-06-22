@@ -42,7 +42,12 @@ import { throttle } from '../canvas-lib';
 import { useResponsive } from '../useResponsive';
 import themes from "../themes.json";
 
-// TODO: patterns
+/**
+ * 
+ * - Diplay percentages per group (#donut)
+ * - Add grab cursor when mousedown
+ * 
+ */
 
 const { vue_ui_chord: DEFAULT_CONFIG } = useConfig();
 
@@ -195,9 +200,10 @@ function prepareChart() {
 }
 
 function checkDataset(){
-    if (props.dataset.matrix.length < 2) {
+    if (!props.dataset || !Object.hasOwn(props.dataset, 'matrix') || props.dataset.matrix.length < 2) {
         console.warn(`VueUiChord: dataset.matrix requires a minimum of 2 datapoints, for example:\n\nmatrix:[\n  [1, 1],\n  [1, 1]\n]`);
         isDataset.value = false;
+        return;
     }
 
     props.dataset.matrix.forEach((m, i) => {
