@@ -112,14 +112,20 @@ function createDs(n, m = 100) {
 const dataset = ref([
     {
         name: "A",
-        series: [null, 100, 112, 221, 119, 75, null, 226, 243, 198, 156, 127, null],
-        type: "line",
+        series: [null, 100, 112, 221, 119, 75, null, -226, -243, 198, 156, 127, null],
+        type: "bar",
         dataLabels: false,
     },
     {
         name: "B",
         series: [null, 75, 119, 201, 109, 85, null, 206, 223, 204, 146, 117, null],
         type: "line",
+        dataLabels: false,
+    },
+    {
+        name: "C",
+        series: [null, 75, 11, 20, 10, 8, null, 20, 22, 204, 146, 117, null],
+        type: "plot",
         dataLabels: false,
     },
     // {
@@ -419,7 +425,7 @@ const model = ref([
     { key: 'chart.highlightArea.caption.padding', def: 3, type: 'number', min: 0, max: 48, label: 'captionPadding', category: 'highlight' },
     { key: 'chart.highlightArea.caption.textAlign', def: 'center', type: 'select', options: ['left', 'center', 'right'], label: 'textAlign', category: 'highlight' },
 
-    { key: 'chart.grid.stroke', def: '#FF0000', type: 'color', label: 'lineColor', category: 'grid' },
+    { key: 'chart.grid.stroke', def: '#CCCCCC', type: 'color', label: 'lineColor', category: 'grid' },
     { key: 'chart.grid.showVerticalLines', def: true, type: 'checkbox', label: 'verticalLines', category: 'grid' },
     { key: 'chart.grid.showHorizontalLines', def: true, type: 'checkbox', label: 'verticalLines', category: 'grid' },
 
@@ -432,7 +438,7 @@ const model = ref([
 
     { key: 'chart.grid.labels.show', def: true, type: 'checkbox', label: 'showLabels', category: 'grid' },
     { key: 'chart.grid.labels.color', def: '#1A1A1A', type: 'color', label: 'textColor', category: 'grid' },
-    { key: 'chart.grid.labels.fontSize', def: 16, type: 'number', min: 4, max: 30, label: 'fontSize', category: 'grid' },
+    { key: 'chart.grid.labels.fontSize', def: 26, type: 'number', min: 4, max: 30, label: 'fontSize', category: 'grid' },
     { key: 'chart.grid.labels.axis.yLabel', def: 'TEST', type: 'text', label: 'yAxisLabel', category: 'grid' },
     { key: 'chart.grid.labels.axis.xLabel', def: 'TEST', type: 'text', label: 'xAxisLabel', category: 'grid' },
     { key: 'chart.grid.labels.axis.fontSize', def: 14, type: 'number', min: 4, max: 30, label: 'fontSize', category: 'grid' },
@@ -452,7 +458,7 @@ const model = ref([
     { key: 'chart.grid.labels.yAxis.commonScaleSteps', def: 10, min: 0, max: 100, type: 'number' },
     { key: 'chart.grid.labels.yAxis.useIndividualScale', def: false, type: "checkbox" },
     { key: 'chart.grid.labels.yAxis.stacked', def: false, type: 'checkbox' },
-    { key: 'chart.grid.labels.yAxis.gap', def: 12, min: 0, max: 200, type: 'number' },
+    { key: 'chart.grid.labels.yAxis.gap', def: 24, min: 0, max: 200, type: 'number' },
     { key: 'chart.grid.labels.yAxis.labelWidth', def: 48, min: 0, max: 100, type: 'number' },
     { key: 'chart.grid.labels.yAxis.showBaseline', def: true, type: 'checkbox' },
     { key: 'chart.grid.labels.yAxis.scaleMin', def: null, type: 'number', min: -1000, max: 1000 },
@@ -464,6 +470,8 @@ const model = ref([
 
     { key: 'chart.grid.labels.yAxis.showCrosshairs', def: true, type: 'checkbox'},
     { key: 'chart.grid.labels.xAxis.showCrosshairs', def: true, type: 'checkbox'},
+    { key: 'chart.grid.labels.xAxis.crosshairSize', def: 6, type: 'number', min: 0, max: 24},
+    { key: 'chart.grid.labels.xAxis.crosshairsAlwaysAtZero', def: false, type: 'checkbox'},
 
     { key: 'chart.grid.labels.xAxis.showBaseline', def: true, type: 'checkbox' },
     { key: 'chart.grid.labels.zeroLine.show', def: true, type: 'checkbox' },
@@ -600,10 +608,49 @@ const size = ref({
 })
 
 const timeValues = computed(() => {
-    const arr = [];
-    for (let i = 0; i < 30; i += 1) {
-        arr.push(`${i >= 10 ? i : '0' + String(i)}-01-2026`)
+  const arr = []
+  const year = 2026
+
+  for (let month = 1; month <= 12; month++) {
+    const daysInMonth = new Date(year, month, 0).getDate()
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dd = String(day).padStart(2, '0')
+      const mm = String(month).padStart(2, '0')
+      arr.push(`${year}-${mm}-${dd}`)  // ISO format
     }
+  }
+
+  console.log(arr)
+
+  return arr
+})
+
+// const monthValues = computed(() => {
+//   const yearStart = 2026
+//   const arr = []
+
+//   for (let i = 0; i < 13; i++) {
+//     // monthIndex goes 0→12 (Jan 2026 → Jan 2027)
+//     const date = new Date(yearStart, i, 1)
+//     const yyyy = date.getFullYear()
+//     const mm   = String(date.getMonth() + 1).padStart(2, '0')
+//     const dd   = String(date.getDate()).padStart(2, '0')  // always "01" here
+
+//     arr.push(`${yyyy}-${mm}-${dd}`)
+//   }
+
+//   return arr
+// })
+
+const monthValues = computed(() => {
+    const yearStart = 2026
+    const arr = []
+
+    for (let i = 0; i < 13; i++) {
+        const d = new Date(yearStart, i, 1)
+        arr.push(d.getTime())
+    }
+
     return arr
 })
 
@@ -784,7 +831,21 @@ const config = computed(() => {
                         },
                         xAxisLabels: {
                             ...c.chart.grid.labels.xAxisLabels,
-                            values: timeValues.value
+                            values: monthValues.value,
+                            datetimeFormatter: {
+                                enable: true,
+                                locale: 'en',
+                                useUTC: false,
+                                januaryAsYear: true,
+                                options: { 
+                                    year: 'yyyy',
+                                    month: `MMM`,
+                                    day: 'dd MMM',
+                                    hour: 'HH:mm',
+                                    minute: 'HH:mm:ss',
+                                    second: 'HH:mm:ss'
+                                }
+                            }
                         }
                     }
                 }
