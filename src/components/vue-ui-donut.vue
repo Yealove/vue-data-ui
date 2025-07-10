@@ -251,6 +251,10 @@ watch(() => props.config, (_newCfg) => {
     mutableConfig.value.dataLabels.show = FINAL_CONFIG.value.style.chart.layout.labels.dataLabels.show;
     mutableConfig.value.showTable = FINAL_CONFIG.value.table.show;
     mutableConfig.value.showTooltip = FINAL_CONFIG.value.style.chart.tooltip.show;
+
+    // Other ref resets
+    svg.value.height = FINAL_CONFIG.value.style.chart.height;
+    svg.value.width = FINAL_CONFIG.value.style.chart.width;
 }, { deep: true });
 
 const padding = computed(() => {
@@ -287,8 +291,8 @@ const mutableConfig = ref({
 });
 
 const svg = ref({
-    height: 360,
-    width: 512
+    height: FINAL_CONFIG.value.style.chart.height,
+    width: FINAL_CONFIG.value.style.chart.width
 });
 
 const donutThickness = computed(() => {
@@ -969,6 +973,12 @@ defineExpose({
             <template v-if="total && FINAL_CONFIG.type === 'classic'">
                 <path v-for="(arc, i) in noGhostDonut" :stroke="FINAL_CONFIG.style.chart.backgroundColor"
                     :d="arc.arcSlice" fill="#FFFFFF" />
+                <path v-for="(arc, i) in noGhostDonut" class="vue-ui-donut-arc-path" :data-cy="`donut-arc-${i}`"
+                    :d="arc.arcSlice" :fill="arc.color"
+                    :stroke="FINAL_CONFIG.style.chart.backgroundColor"
+                    :stroke-width="FINAL_CONFIG.style.chart.layout.donut.borderWidth" :filter="getBlurFilter(i)" 
+                        
+                />
                 <g v-if="$slots.pattern">
                     <path v-for="(arc, i) in noGhostDonut" class="vue-ui-donut-arc-path"
                         :data-cy="`donut-arc-pattern-${arc.patternIndex}`" :d="arc.arcSlice"
@@ -976,12 +986,6 @@ defineExpose({
                         :stroke="FINAL_CONFIG.style.chart.backgroundColor"
                         :stroke-width="FINAL_CONFIG.style.chart.layout.donut.borderWidth" :filter="getBlurFilter(i)" />
                 </g>
-                <path v-for="(arc, i) in noGhostDonut" class="vue-ui-donut-arc-path" :data-cy="`donut-arc-${i}`"
-                    :d="arc.arcSlice" :fill="setOpacity(arc.color, 80)"
-                    :stroke="FINAL_CONFIG.style.chart.backgroundColor"
-                    :stroke-width="FINAL_CONFIG.style.chart.layout.donut.borderWidth" :filter="getBlurFilter(i)" 
-                        
-                />
             </template>
 
             <template v-if="total && FINAL_CONFIG.type === 'polar'">
