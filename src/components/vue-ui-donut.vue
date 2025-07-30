@@ -16,6 +16,7 @@ import {
     easeOutCubic,
     error,
     getMissingDatasetAttributes,
+    hasDeepProperty,
     isFunction,
     makeDonut,
     objectIsEmpty,
@@ -119,6 +120,16 @@ function prepareChart() {
                 })
             })
         })
+        props.dataset.forEach((ds, i) => {
+            if (!ds.name || ds.name === '') {
+                error({
+                    componentName: 'VueUiDonut',
+                    type: 'datasetAttributeEmpty',
+                    property: 'name',
+                    index: i
+                })
+            }
+        })
     }
 
     if (FINAL_CONFIG.value.responsive) {
@@ -164,8 +175,11 @@ function prepareConfig() {
         userConfig: props.config,
         defaultConfig: DEFAULT_CONFIG
     });
+
+    let finalConfig =  {}
+    
     if (mergedConfig.theme) {
-        return {
+        finalConfig = {
             ...useNestedProp({
                 userConfig: themes.vue_ui_donut[mergedConfig.theme] || props.config,
                 defaultConfig: mergedConfig
@@ -173,8 +187,32 @@ function prepareConfig() {
             customPalette: themePalettes[mergedConfig.theme] || palette
         }
     } else {
-        return mergedConfig;
+        finalConfig = mergedConfig;
     }
+
+    // ------------------------------ OVERRIDES -----------------------------------
+
+    if (props.config && hasDeepProperty(props.config, 'events.datapointEnter')) {
+        finalConfig.events.datapointEnter = props.config.events.datapointEnter;
+    } else {
+        finalConfig.events.datapointEnter = null;
+    }
+
+    if (props.config && hasDeepProperty(props.config, 'events.datapointLeave')) {
+        finalConfig.events.datapointLeave = props.config.events.datapointLeave;
+    } else {
+        finalConfig.events.datapointLeave = null;
+    }
+
+    if (props.config && hasDeepProperty(props.config, 'events.datapointClick')) {
+        finalConfig.events.datapointClick = props.config.events.datapointClick;
+    } else {
+        finalConfig.events.datapointClick = null;
+    }
+
+    // ----------------------------------------------------------------------------
+
+    return finalConfig;
 }
 
 const FINAL_CONFIG = computed({
@@ -611,7 +649,19 @@ const dataTooltipSlot = ref(null);
 
 const useCustomFormat = ref(false);
 
+function handleDatapointLeave({ datapoint, seriesIndex }) {
+    if (FINAL_CONFIG.value.events.datapointLeave) {
+        FINAL_CONFIG.value.events.datapointLeave({ datapoint, seriesIndex });
+    }
+    isTooltip.value = false;
+    selectedSerie.value = null;
+}
+
 function useTooltip({ datapoint, relativeIndex, seriesIndex, show = false }) {
+    if (FINAL_CONFIG.value.events.datapointEnter) {
+        FINAL_CONFIG.value.events.datapointEnter({ datapoint, seriesIndex });
+    }
+
     dataTooltipSlot.value = { datapoint, seriesIndex, config: FINAL_CONFIG.value, series: immutableSet.value };
     isTooltip.value = show;
     selectedSerie.value = relativeIndex;
@@ -788,6 +838,9 @@ function dashLabel(num) {
 }
 
 function selectDatapoint(datapoint, index) {
+    if (FINAL_CONFIG.value.events.datapointClick) {
+        FINAL_CONFIG.value.events.datapointClick({ datapoint, seriesIndex: datapoint.seriesIndex})
+    }
     emit('selectDatapoint', { datapoint, index });
 }
 
@@ -1031,7 +1084,7 @@ defineExpose({
                             :data-cy="`donut-arc-${i}`"
                             :d="arc.arcSlice" 
                             :fill="arc.color"
-                            :stroke="FINAL_CONFIG.style.chart.backgroundColor"
+                            :stroke="FINAL_CONFIG.style.chart.layout.donut.borderColorAuto ? FINAL_CONFIG.style.chart.backgroundColor : FINAL_CONFIG.style.chart.layout.donut.borderColor"
                             :stroke-width="FINAL_CONFIG.style.chart.layout.donut.borderWidth" 
                             :filter="getBlurFilter(i)" 
                         />
@@ -1040,14 +1093,14 @@ defineExpose({
                         <path v-for="(arc, i) in noGhostDonut" class="vue-ui-donut-arc-path"
                             :data-cy="`donut-arc-pattern-${arc.patternIndex}`" :d="arc.arcSlice"
                             :fill="`url(#${arc.pattern})`"
-                            :stroke="FINAL_CONFIG.style.chart.backgroundColor"
+                            :stroke="FINAL_CONFIG.style.chart.layout.donut.borderColorAuto ? FINAL_CONFIG.style.chart.backgroundColor : FINAL_CONFIG.style.chart.layout.donut.borderColor"
                             :stroke-width="FINAL_CONFIG.style.chart.layout.donut.borderWidth" :filter="getBlurFilter(i)" />
                     </g>
                 </template>
     
                 <template v-if="total && FINAL_CONFIG.type === 'polar'">
                     <g v-if="currentDonut.length > 1">
-                        <path v-for="(arc, i) in noGhostDonut" :stroke="FINAL_CONFIG.style.chart.backgroundColor"
+                        <path v-for="(arc, i) in noGhostDonut" :stroke="FINAL_CONFIG.style.chart.layout.donut.borderColorAuto ? FINAL_CONFIG.style.chart.backgroundColor : FINAL_CONFIG.style.chart.layout.donut.borderColor"
                             :d="polarAreas[i].path" fill="#FFFFFF" 
                             :style="{
                                 transition: isFirstLoad || !FINAL_CONFIG.serieToggleAnimation.show ? 'none' : `all ${FINAL_CONFIG.serieToggleAnimation.durationMs}ms ease-in-out`
@@ -1056,7 +1109,7 @@ defineExpose({
                         <g v-if="FINAL_CONFIG.style.chart.layout.donut.useShadow">
                             <path data-cy="polar-shadow" v-for="(_arc, i) in noGhostDonut" class="vue-ui-donut-arc-path"
                                 :d="polarAreas[i].path" :fill="'transparent'"
-                                :stroke="FINAL_CONFIG.style.chart.backgroundColor"
+                                :stroke="FINAL_CONFIG.style.chart.layout.donut.borderColorAuto ? FINAL_CONFIG.style.chart.backgroundColor : FINAL_CONFIG.style.chart.layout.donut.borderColor"
                                 :stroke-width="FINAL_CONFIG.style.chart.layout.donut.borderWidth"
                                 :filter="`url(#drop_shadow_${uid})`" 
                                 :style="{
@@ -1069,7 +1122,7 @@ defineExpose({
                             <path v-for="(arc, i) in noGhostDonut" class="vue-ui-donut-arc-path"
                                 :data-cy="`polar-arc-${arc.patternIndex}`" :d="polarAreas[i].path"
                                 :fill="`url(#${arc.pattern})`"
-                                :stroke="FINAL_CONFIG.style.chart.backgroundColor"
+                                :stroke="FINAL_CONFIG.style.chart.layout.donut.borderColorAuto ? FINAL_CONFIG.style.chart.backgroundColor : FINAL_CONFIG.style.chart.layout.donut.borderColor"
                                 :stroke-width="FINAL_CONFIG.style.chart.layout.donut.borderWidth"
                                 :filter="getBlurFilter(i)"
                                 :style="{
@@ -1080,7 +1133,7 @@ defineExpose({
                         <path v-for="(arc, i) in noGhostDonut" class="vue-ui-donut-arc-path" :data-cy="`donut-arc-${i}`"
                             :d="polarAreas[i].path"
                             :fill="FINAL_CONFIG.style.chart.useGradient ? `url(#polar_gradient_${i}_${uid})` : arc.color"
-                            :stroke="FINAL_CONFIG.style.chart.backgroundColor"
+                            :stroke="FINAL_CONFIG.style.chart.layout.donut.borderColorAuto ? FINAL_CONFIG.style.chart.backgroundColor : FINAL_CONFIG.style.chart.layout.donut.borderColor"
                             :stroke-width="FINAL_CONFIG.style.chart.layout.donut.borderWidth" :filter="getBlurFilter(i)"
                             :style="{
                                 transition: isFirstLoad || !FINAL_CONFIG.serieToggleAnimation.show ? 'none' : `all ${FINAL_CONFIG.serieToggleAnimation.durationMs}ms ease-in-out`
@@ -1128,12 +1181,14 @@ defineExpose({
                     <g v-if="currentDonut.length > 1 || FINAL_CONFIG.type === 'classic'">
                         <path data-cy="tooltip-trap" v-for="(arc, i) in currentDonut.filter(el => !el.ghost)"
                             :d="FINAL_CONFIG.type === 'classic' ? arc.arcSlice : polarAreas[i].path"
-                            :fill="selectedSerie === i ? 'rgba(0,0,0,0.1)' : 'transparent'" @mouseenter="useTooltip({
+                            :stroke="FINAL_CONFIG.style.chart.layout.donut.borderColorAuto ? FINAL_CONFIG.style.chart.backgroundColor : FINAL_CONFIG.style.chart.layout.donut.borderColor"
+                            :fill="selectedSerie === i ? FINAL_CONFIG.style.chart.layout.donut.selectedColor : 'transparent'" @mouseenter="useTooltip({
                                 datapoint: arc,
                                 relativeIndex: i,
                                 seriesIndex: arc.seriesIndex,
                                 show: true
-                            })" @mouseleave="isTooltip = false; selectedSerie = null" @click="selectDatapoint(arc, i)" />
+                            })"
+                            @mouseleave="handleDatapointLeave({ datapoint: arc, seriesIndex: arc.seriesIndex })" @click="selectDatapoint(arc, i)" />
                     </g>
                     <g v-else>
                         <circle data-cy="tooltip-trap" :cx="svg.width / 2" :cy="svg.height / 2" :r="minSize"
@@ -1142,7 +1197,7 @@ defineExpose({
                                 relativeIndex: 0,
                                 seriesIndex: currentDonut[0].seriesIndex,
                                 show: true
-                            })" @mouseleave="isTooltip = false; selectedSerie = null"
+                            })" @mouseleave="handleDatapointLeave({ datapoint: currentDonut[0], seriesIndex: currentDonut[0].seriesIndex })"
                             @click="selectDatapoint(currentDonut[0], i)" />
                     </g>
                 </template>
@@ -1229,7 +1284,15 @@ defineExpose({
                                 :cx="calcMarkerOffsetX(arc).x" :cy="calcMarkerOffsetY(arc) - 3.5" :fill="arc.color"
                                 :stroke="FINAL_CONFIG.style.chart.backgroundColor" :stroke-width="1" :r="3"
                                 :filter="!FINAL_CONFIG.useBlurOnHover || [null, undefined].includes(selectedSerie) || selectedSerie === i ? `` : `url(#blur_${uid})`"
-                                @click="selectDatapoint(arc, i)" />
+                                @click="selectDatapoint(arc, i)"
+                                @mouseenter="useTooltip({
+                                    datapoint: arc,
+                                    relativeIndex: i,
+                                    seriesIndex: arc.seriesIndex,
+                                    show: true
+                                })"
+                                @mouseleave="handleDatapointLeave({ datapoint: arc, seriesIndex: arc.seriesIndex })"
+                            />
                         </template>
                         <template v-if="FINAL_CONFIG.type === 'polar'">
                             <circle data-cy="polar-label-marker" v-if="isArcBigEnough(arc) && mutableConfig.dataLabels.show"
@@ -1238,7 +1301,14 @@ defineExpose({
                                 :fill="arc.color" :stroke="FINAL_CONFIG.style.chart.backgroundColor" :stroke-width="1"
                                 :r="3"
                                 :filter="!FINAL_CONFIG.useBlurOnHover || [null, undefined].includes(selectedSerie) || selectedSerie === i ? `` : `url(#blur_${uid})`"
-                                @click="selectDatapoint(arc, i)" 
+                                @click="selectDatapoint(arc, i)"
+                                @mouseenter="useTooltip({
+                                    datapoint: arc,
+                                    relativeIndex: i,
+                                    seriesIndex: arc.seriesIndex,
+                                    show: true
+                                })"
+                                @mouseleave="handleDatapointLeave({ datapoint: arc, seriesIndex: arc.seriesIndex })"
                                 :style="{
                                     transition: isFirstLoad || !FINAL_CONFIG.serieToggleAnimation.show ? 'none' : `all ${FINAL_CONFIG.serieToggleAnimation.durationMs}ms ease-in-out`
                                 }"
@@ -1251,7 +1321,15 @@ defineExpose({
                                 :fill="FINAL_CONFIG.style.chart.layout.labels.percentage.color"
                                 :font-size="FINAL_CONFIG.style.chart.layout.labels.percentage.fontSize"
                                 :style="`font-weight:${FINAL_CONFIG.style.chart.layout.labels.percentage.bold ? 'bold' : ''}`"
-                                @click="selectDatapoint(arc, i)">
+                                @click="selectDatapoint(arc, i)"
+                                @mouseenter="useTooltip({
+                                    datapoint: arc,
+                                    relativeIndex: i,
+                                    seriesIndex: arc.seriesIndex,
+                                    show: true
+                                })"
+                                @mouseleave="handleDatapointLeave({ datapoint: arc, seriesIndex: arc.seriesIndex })"
+                            >
                                 {{ displayArcPercentage(arc, noGhostDonut) }} {{
                                     FINAL_CONFIG.style.chart.layout.labels.value.show ? `(${applyDataLabel(
                                         FINAL_CONFIG.style.chart.layout.labels.value.formatter,
@@ -1271,7 +1349,15 @@ defineExpose({
                                 :fill="FINAL_CONFIG.style.chart.layout.labels.name.color"
                                 :font-size="FINAL_CONFIG.style.chart.layout.labels.name.fontSize"
                                 :style="`font-weight:${FINAL_CONFIG.style.chart.layout.labels.name.bold ? 'bold' : ''}`"
-                                @click="selectDatapoint(arc, i)">
+                                @click="selectDatapoint(arc, i)"
+                                @mouseenter="useTooltip({
+                                    datapoint: arc,
+                                    relativeIndex: i,
+                                    seriesIndex: arc.seriesIndex,
+                                    show: true
+                                })"
+                                @mouseleave="handleDatapointLeave({ datapoint: arc, seriesIndex: arc.seriesIndex })"
+                            >
                                 {{ arc.name }}
                             </text>
                         </template>
@@ -1286,7 +1372,15 @@ defineExpose({
                                     transition: isFirstLoad || !FINAL_CONFIG.serieToggleAnimation.show ? 'none' : `all ${FINAL_CONFIG.serieToggleAnimation.durationMs}ms ease-in-out`,
                                     fontWeight: FINAL_CONFIG.style.chart.layout.labels.percentage.bold ? 'bold': 'normal'
                                 }"
-                                @click="selectDatapoint(arc, i)">
+                                @click="selectDatapoint(arc, i)"
+                                @mouseenter="useTooltip({
+                                    datapoint: arc,
+                                    relativeIndex: i,
+                                    seriesIndex: arc.seriesIndex,
+                                    show: true
+                                })"
+                                @mouseleave="handleDatapointLeave({ datapoint: arc, seriesIndex: arc.seriesIndex })"
+                            >
                                 {{ displayArcPercentage(arc, noGhostDonut) }} {{
                                     FINAL_CONFIG.style.chart.layout.labels.value.show ? `(${applyDataLabel(
                                         FINAL_CONFIG.style.chart.layout.labels.value.formatter,
@@ -1310,7 +1404,15 @@ defineExpose({
                                     transition: isFirstLoad || !FINAL_CONFIG.serieToggleAnimation.show ? 'none' : `all ${FINAL_CONFIG.serieToggleAnimation.durationMs}ms ease-in-out`,
                                     fontWeight: FINAL_CONFIG.style.chart.layout.labels.name.bold ? 'bold': 'normal'
                                 }"
-                                @click="selectDatapoint(arc, i)">
+                                @click="selectDatapoint(arc, i)"
+                                @mouseenter="useTooltip({
+                                    datapoint: arc,
+                                    relativeIndex: i,
+                                    seriesIndex: arc.seriesIndex,
+                                    show: true
+                                })"
+                                @mouseleave="handleDatapointLeave({ datapoint: arc, seriesIndex: arc.seriesIndex })"
+                            >
                                 {{ arc.name }}
                             </text>
                         </template>
