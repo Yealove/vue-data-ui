@@ -3282,6 +3282,18 @@ declare module "vue-data-ui" {
                     radius?: number;
                     color?: string;
                 };
+                customFormat?:
+                | null
+                | ((
+                    params: VueUiTooltipParams<
+                        VueUiXyDatapointItem[],
+                        VueUiXySeries,
+                        VueUiXyConfig,
+                        VueUiXyDatasetBarItem[],
+                        VueUiXyDatasetLineItem[],
+                        VueUiXyDatasetPlotItem[]
+                    >
+                ) => string);
             };
             highlightArea?: VueUiXyHighlightArea | VueUiXyHighlightArea[];
             grid?: {
@@ -3439,6 +3451,11 @@ declare module "vue-data-ui" {
             useGradient?: boolean;
             strokeWidth?: number;
             cutNullValues?: boolean;
+            interLine?: {
+                pairs?: [string, string][];
+                colors?: [string | undefined, string | undefined][];
+                fillOpacity?: number;
+            };
             dot?: {
                 hideAboveMaxSerieLength?: number;
                 useSerieColor?: boolean;

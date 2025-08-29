@@ -53,6 +53,7 @@ import {
     createSmoothAreaSegments,
     createIndividualArea,
     treeShake,
+    buildInterLineAreas,
 } from '../lib';
 import { throttle } from '../canvas-lib.js';
 import { useConfig } from '../useConfig';
@@ -335,6 +336,8 @@ const isDataset = computed({
 });
 
 const FINAL_CONFIG = ref(prepareConfig());
+
+const debug = computed(() => !!FINAL_CONFIG.value.debug);
 
 // v3 - Skeleton loader management
 const { loading, FINAL_DATASET, manualLoading } = useLoading({
@@ -820,8 +823,8 @@ const displayedTimeLabels = computed(() => {
     const mod = Math.max(1, (modulo.value || 1));
     if (maxSeries.value <= mod) return vis;
 
-    const base  = mod;
-    const all   = allTimeLabels.value || [];
+    const base = mod;
+    const all = allTimeLabels.value || [];
     const start = slicer.value.start ?? 0;
 
     const candidates = [];
@@ -878,8 +881,8 @@ function selectTimeLabel(label, relativeIndex) {
 }
 
 const maxSeries = computed(() => {
-  const len = safeInt((slicer.value.end ?? 0) - (slicer.value.start ?? 0))
-  return Math.max(1, len)
+    const len = safeInt((slicer.value.end ?? 0) - (slicer.value.start ?? 0))
+    return Math.max(1, len)
 })
 
 function selectMinimapIndex(i) {
@@ -1941,6 +1944,43 @@ const allScales = computed(() => {
     });
 });
 
+const interLineAreas = computed(() => {
+    const il = FINAL_CONFIG.value.line.interLine || {};
+    const pairs  = il.pairs || [];
+    const colors = il.colors || [];
+
+    if (!pairs.length) return [];
+
+    const out = [];
+    pairs.forEach((pair, i) => {
+        const [nameA, nameB] = Array.isArray(pair) ? pair : [pair.a, pair.b];
+        if (!nameA || !nameB) return;
+
+        const A = lineSet.value.find(s => s.name === nameA);
+        const B = lineSet.value.find(s => s.name === nameB);
+        if (!A || !B || A.type !== 'line' || B.type !== 'line') return;
+
+        const colorLineA = (colors?.[i]?.[0]) ?? A.color;
+        const colorLineB = (colors?.[i]?.[1]) ?? B.color;
+
+        const areas = buildInterLineAreas({
+            lineA: A.plots,
+            lineB: B.plots,
+            smoothA: !!A.smooth,
+            smoothB: !!B.smooth,
+            colorLineA,
+            colorLineB,
+            sampleStepPx: 2,
+            cutNullValues: FINAL_CONFIG.value.line.cutNullValues
+        });
+
+        areas.forEach((a, j) => {
+            out.push({ ...a, key: `inter_${nameA}_${nameB}_${i}_${j}` });
+        });
+    });
+    return out;
+});
+
 /******************************************************************************************/
 
 const dataTooltipSlot = computed(() => {
@@ -2259,8 +2299,6 @@ function convertSizes() {
     })
 }
 
-const debug = computed(() => !!FINAL_CONFIG.value.debug);
-
 function prepareChart() {
     if (objectIsEmpty(props.dataset)) {
         error({
@@ -2462,6 +2500,42 @@ useTimeLabelCollision({
     rotation: FINAL_CONFIG.value.chart.grid.labels.xAxisLabels.autoRotate.angle
 });
 
+const useCustomFormatTimeTag = ref(false);
+
+const timeTagContent = computed(() => {
+    if ([null, undefined].includes(selectedSerieIndex.value) && [null, undefined].includes(selectedMinimapIndex.value)) return ''
+
+    const index = (selectedSerieIndex.value != null ? selectedSerieIndex.value : 0) || (selectedMinimapIndex.value != null ? selectedMinimapIndex.value : 0);
+
+    const customFormat = FINAL_CONFIG.value.chart.timeTag.customFormat;
+    useCustomFormatTimeTag.value = false;
+
+    if (isFunction(customFormat)) {
+        try {
+            const customFormatString = customFormat({
+                absoluteIndex: index + slicer.value.start,
+                seriesIndex: index,
+                datapoint: selectedSeries.value,
+                bars: barSet.value,
+                lines: lineSet.value,
+                plots: plotSet.value,
+                config: FINAL_CONFIG.value
+            });
+            if (typeof customFormatString === 'string') {
+                useCustomFormatTimeTag.value = true;
+                return customFormatString
+            }
+        } catch (err) {
+            console.warn('Custom format cannot be applied on timeTag.');
+            useCustomFormatTimeTag.value = false;
+        }
+    }
+
+    if (!useCustomFormatTimeTag.value) {
+        return ![null, undefined].includes(timeLabels.value[index] ) ? timeLabels.value[index].text : ''
+    }
+});
+
 // Force reflow when component is mounted in a hidden div
 
 watch(() => props.dataset, (_) => {
@@ -2501,24 +2575,24 @@ watch(() => props.config, (_) => {
 const isActuallyVisible = ref(false)
 
 function recomputeVisibility() {
-  const el = chart.value?.parentNode
-  if (!el) { isActuallyVisible.value = false; return }
-  const r = el.getBoundingClientRect()
-  isActuallyVisible.value = r.width > 2 && r.height > 2
+    const el = chart.value?.parentNode
+    if (!el) { isActuallyVisible.value = false; return }
+    const r = el.getBoundingClientRect()
+    isActuallyVisible.value = r.width > 2 && r.height > 2
 }
 
 onMounted(() => {
-  recomputeVisibility()
-  const ro = new ResizeObserver(() => {
     recomputeVisibility()
-    if (isActuallyVisible.value) {
-      // re-measure and re-init once we have size
-      prepareChart()
-      normalizeSlicerWindow()
-      setupSlicer()
-    }
-  })
-  if (chart.value?.parentNode) ro.observe(chart.value.parentNode)
+    const ro = new ResizeObserver(() => {
+        recomputeVisibility()
+        if (isActuallyVisible.value) {
+        // re-measure and re-init once we have size
+        prepareChart()
+        normalizeSlicerWindow()
+        setupSlicer()
+        }
+    })
+    if (chart.value?.parentNode) ro.observe(chart.value.parentNode)
 })
 
 // v3 - Essential to make shifting between loading config and final config work
@@ -2874,7 +2948,7 @@ defineExpose({
                     <!-- ZERO LINE (AFTER BAR DATASETS, BEFORE LABELS) -->
                     <template v-if="!mutableConfig.useIndividualScale && FINAL_CONFIG.chart.grid.labels.zeroLine.show">
                         <line data-cy="xy-grid-line-x" :stroke="FINAL_CONFIG.chart.grid.stroke" stroke-width="1"
-                            :x1="drawingArea.left + xPadding" :x2="drawingArea.right - xPadding"
+                            :x1="drawingArea.left + xPadding" :x2="drawingArea.right"
                             :y1="forceValidValue(zero)" :y2="forceValidValue(zero)" stroke-linecap="round"
                             :style="{ animation: 'none !important' }" />
                     </template>
@@ -2957,8 +3031,8 @@ defineExpose({
                             <g v-for="(yLabel, i) in yLabels" :key="`yLabel_${i}`">
                                 <line data-cy="axis-y-tick"
                                     v-if="canShowValue(yLabel) && yLabel.value >= niceScale.min && yLabel.value <= niceScale.max && FINAL_CONFIG.chart.grid.labels.yAxis.showCrosshairs"
-                                    :x1="drawingArea.left"
-                                    :x2="drawingArea.left - FINAL_CONFIG.chart.grid.labels.yAxis.crosshairSize"
+                                    :x1="drawingArea.left + xPadding"
+                                    :x2="drawingArea.left + xPadding - FINAL_CONFIG.chart.grid.labels.yAxis.crosshairSize"
                                     :y1="forceValidValue(yLabel.y)" :y2="forceValidValue(yLabel.y)"
                                     :stroke="FINAL_CONFIG.chart.grid.stroke" stroke-width="1" stroke-linecap="round"
                                     :style="{ animation: 'none !important' }" />
@@ -3056,6 +3130,20 @@ defineExpose({
                         <slot v-for="(serie, i) in safeDataset" :key="`serie_pattern_slot_${i}`" name="pattern"
                             v-bind="{ ...serie, seriesIndex: serie.slotAbsoluteIndex, patternId: `pattern_${uniqueId}_${i}` }" />
                     </defs>
+
+                    <!-- INTERLINE AREAS (non stack mode only) -->
+                    <g v-if="interLineAreas.length && !mutableConfig.isStacked">
+                        <path
+                            v-for="area in interLineAreas"
+                            :key="area.key"
+                            :d="area.d"
+                            :fill="area.color"
+                            :fill-opacity="FINAL_CONFIG.line.interLine.fillOpacity"
+                            stroke="none"
+                            pointer-events="none"
+                            :style="{ transition: loading || !FINAL_CONFIG.line.showTransition ? undefined: `all ${FINAL_CONFIG.line.transitionDurationMs}ms ease-in-out`}"
+                        />
+                    </g>
 
                     <!-- LINES -->
                     <g v-for="(serie, i) in lineSet" :key="`serie_line_${i}`" :class="`serie_line_${i}`"
@@ -3532,15 +3620,9 @@ defineExpose({
                             :x="drawingArea.left + (drawingArea.width / maxSeries) * ((selectedSerieIndex !== null ? selectedSerieIndex : 0) || (selectedMinimapIndex !== null ? selectedMinimapIndex : 0)) - 100 + (drawingArea.width / maxSeries / 2)"
                             :y="drawingArea.bottom" width="200" height="40" style="overflow: visible !important;">
                             <div class="vue-ui-xy-time-tag"
-                                :style="`width: fit-content;margin: 0 auto;text-align:center;padding:3px 12px;background:${FINAL_CONFIG.chart.timeTag.backgroundColor};color:${FINAL_CONFIG.chart.timeTag.color};font-size:${FINAL_CONFIG.chart.timeTag.fontSize}px`">
-                                {{ (timeLabels[(selectedSerieIndex !== null ? selectedSerieIndex : 0) ||
-                                    (selectedMinimapIndex !== null ?
-                                        selectedMinimapIndex : 0)] ? timeLabels[(selectedSerieIndex !== null ? selectedSerieIndex : 0) ||
-                                    (selectedMinimapIndex !== null ?
-                                        selectedMinimapIndex : 0)].text : '') || ((selectedSerieIndex !== null ? selectedSerieIndex :
-                                0) ||
-                                (selectedMinimapIndex !== null ? selectedMinimapIndex : 0)) }}
-                            </div>
+                                :style="`width: fit-content;margin: 0 auto;text-align:center;padding:3px 12px;background:${FINAL_CONFIG.chart.timeTag.backgroundColor};color:${FINAL_CONFIG.chart.timeTag.color};font-size:${FINAL_CONFIG.chart.timeTag.fontSize}px`"
+                                v-html="timeTagContent"
+                            />
                         </foreignObject>
                         <circle
                             :cx="drawingArea.left + (drawingArea.width / maxSeries) * ((selectedSerieIndex !== null ? selectedSerieIndex : 0) || (selectedMinimapIndex !== null ? selectedMinimapIndex : 0)) + (drawingArea.width / maxSeries / 2)"

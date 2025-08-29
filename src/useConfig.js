@@ -533,7 +533,8 @@ export function useConfig() {
                 circleMarker: {
                     radius: 3,
                     color: COLOR_BLACK
-                }
+                },
+                customFormat: null
             },
             grid: {
                 stroke: COLOR_GREY_LIGHT,
@@ -684,6 +685,11 @@ export function useConfig() {
             useGradient: true,
             strokeWidth: 3,
             cutNullValues: false,
+            interLine: {
+                pairs: [],
+                colors: [],
+                fillOpacity: 0.25,
+            },
             dot: {
                 hideAboveMaxSerieLength: 62,
                 useSerieColor: true,
