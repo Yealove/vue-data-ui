@@ -369,6 +369,12 @@ declare module "vue-data-ui" {
         }
     }
 
+    export type MinimalCustomFormatParams<TDatapoint = any> = {
+        absoluteIndex: number;
+        seriesIndex: number;
+        datapoint: TDatapoint;
+    };
+
     export type VueUiTooltipParams<
         TDatapoint,
         TSeries,
@@ -3272,6 +3278,11 @@ declare module "vue-data-ui" {
                     strokeWidth?: number;
                     strokeDasharray?: number;
                 };
+                useDefaultFormat?: boolean;
+                timeFormat?: string;
+                customFormat?:
+                | null
+                | ((params: MinimalCustomFormatParams<VueUiXyDatapointItem[]>) => string);
             };
             padding?: ChartPadding;
             annotations?: VueUiXyAnnotation[];
@@ -3291,18 +3302,11 @@ declare module "vue-data-ui" {
                     radius?: number;
                     color?: string;
                 };
+                useDefaultFormat?: boolean;
+                timeFormat?: string;
                 customFormat?:
                 | null
-                | ((
-                    params: VueUiTooltipParams<
-                        VueUiXyDatapointItem[],
-                        VueUiXySeries,
-                        VueUiXyConfig,
-                        VueUiXyDatasetBarItem[],
-                        VueUiXyDatasetLineItem[],
-                        VueUiXyDatasetPlotItem[]
-                    >
-                ) => string);
+                | ((params: MinimalCustomFormatParams<VueUiXyDatapointItem[]>) => string);
             };
             highlightArea?: VueUiXyHighlightArea | VueUiXyHighlightArea[];
             grid?: {
@@ -3421,6 +3425,8 @@ declare module "vue-data-ui" {
                     >
                 ) => string);
                 showTimeLabel?: boolean;
+                useDefaultTimeFormat?: boolean;
+                timeFormat?: string;
             };
             userOptions?: ChartUserOptions;
         };
