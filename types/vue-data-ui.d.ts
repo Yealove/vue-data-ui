@@ -267,14 +267,10 @@ declare module "vue-data-ui" {
             table?: null | (() => void);
             tooltip?: null | (() => void);
         };
-        // old html2canvas options
         print?: {
-            allowTaint?: boolean;
-            backgroundColor?: string;
-            useCORS?: boolean;
-            onclone?: null | ((doc: Document) => void);
             scale?: number;
-            logging?: boolean;
+            orientation?: 'auto' | 'l' | 'p';
+            overflowTolerance?: number;
         };
     };
 
@@ -6151,12 +6147,9 @@ declare module "vue-data-ui" {
             annotator?: string;
         };
         userOptionsPrint?: {
-            allowTaint?: boolean;
-            backgroundColor?: string;
-            useCORS?: boolean;
-            onclone?: null | ((doc: Document) => void),
             scale?: number;
-            logging?: boolean;
+            overflowTolerance?: number;
+            orientation?: 'auto' | 'l' | 'p';
         };
         userOptionsCallbacks?: {
             tooltip?: null | (() => void);
