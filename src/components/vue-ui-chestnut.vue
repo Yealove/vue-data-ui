@@ -37,6 +37,7 @@ import { useConfig } from "../useConfig";
 import { useLoading } from "../useLoading";
 import { usePrinter } from "../usePrinter";
 import { useNestedProp } from "../useNestedProp";
+import { useTableResponsive } from "../useTableResponsive";
 import { useUserOptionState } from "../useUserOptionState";
 import { useChartAccessibility } from "../useChartAccessibility";
 import img from "../img";
@@ -48,6 +49,7 @@ const Accordion = defineAsyncComponent(() => import('./vue-ui-accordion.vue'));
 const PenAndPaper = defineAsyncComponent(() => import('../atoms/PenAndPaper.vue'));
 const UserOptions = defineAsyncComponent(() => import('../atoms/UserOptions.vue'));
 const PackageVersion = defineAsyncComponent(() => import('../atoms/PackageVersion.vue'));
+const BaseDraggableDialog = defineAsyncComponent(() => import('../atoms/BaseDraggableDialog.vue'));
 
 const { vue_ui_chestnut: DEFAULT_CONFIG } = useConfig()
 
@@ -74,6 +76,7 @@ const uid = ref(createUid());
 const chestnutChart = ref(null);
 const details = ref(null);
 const step = ref(0);
+const tableUnit = ref(null);
 
 const FINAL_CONFIG = ref(prepareConfig());
 
@@ -246,7 +249,7 @@ watch(FINAL_CONFIG, () => {
 }, { immediate: true });
 
 const tableContainer = ref(null)
-const isResponsive = ref(false)
+
 const breakpoint = computed(() => {
     return FINAL_CONFIG.value.table.responsiveBreakpoint
 })
@@ -544,33 +547,9 @@ function isArcBigEnough(arc) {
     return arc.proportion * 100 > FINAL_CONFIG.value.style.chart.layout.nuts.selected.labels.dataLabels.hideUnderValue;
 }
 
-const tableObserver = shallowRef(null);
-
-function observeTable() {
-    if (tableObserver.value) {
-        tableObserver.value.disconnect();
-    }
-
-    tableObserver.value = new ResizeObserver((entries) => {
-        entries.forEach(entry => {
-            isResponsive.value = entry.contentRect.width < breakpoint.value;
-        })
-    })
-
-    if (tableContainer.value) {
-        tableObserver.value.observe(tableContainer.value);
-    }
-}
-
 onMounted(() => {
     prepareChart();
 });
-
-onBeforeUnmount(() => {
-    if (tableObserver.value) {
-        tableObserver.value.disconnect();
-    }
-})
 
 const debug = computed(() => FINAL_CONFIG.value.debug);
 
@@ -585,7 +564,6 @@ function prepareChart() {
 
     const height = totalBranches.value * (svg.value.branchSize + svg.value.gap) + svg.value.padding.top + svg.value.padding.bottom;
     svg.value.height = height;
-    observeTable()
 }
 
 const table = computed(() => {
@@ -690,6 +668,52 @@ function getLinkPath(branch) {
         `Z`
     ].join(' ');
 }
+
+const tableComponent = computed(() => {
+    const useDialog = FINAL_CONFIG.value.table.useDialog && !FINAL_CONFIG.value.table.show;
+    const open = mutableConfig.value.showTable;
+    return {
+        component: useDialog ? BaseDraggableDialog : Accordion,
+        title: `${FINAL_CONFIG.value.style.chart.layout.title.text}${FINAL_CONFIG.value.style.chart.layout.title.subtitle.text ? `: ${FINAL_CONFIG.value.style.chart.layout.title.subtitle.text}` : ''}`,
+        props: useDialog ? {
+            backgroundColor: FINAL_CONFIG.value.table.th.backgroundColor,
+            color: FINAL_CONFIG.value.table.th.color,
+            headerColor: FINAL_CONFIG.value.table.th.color,
+            headerBg: FINAL_CONFIG.value.table.th.backgroundColor,
+            isFullscreen: isFullscreen.value,
+            fullscreenParent: chestnutChart.value,
+            forcedWidth: Math.min(800, window.innerWidth * 0.8)
+        } : {
+            hideDetails: true,
+            config: {
+                open,
+                maxHeight: 10000,
+                body: {
+                    backgroundColor: FINAL_CONFIG.value.style.chart.backgroundColor,
+                    color: FINAL_CONFIG.value.style.chart.color
+                },
+                head: {
+                    backgroundColor: FINAL_CONFIG.value.style.chart.backgroundColor,
+                    color: FINAL_CONFIG.value.style.chart.color
+                }
+            }
+        }
+    }
+});
+
+watch(() => mutableConfig.value.showTable, async (v) => {
+    if (FINAL_CONFIG.value.table.show) return;
+    if (v && FINAL_CONFIG.value.table.useDialog && tableUnit.value) {
+        await nextTick();
+        tableUnit.value.open();
+    } else {
+        if ('close' in tableUnit.value) {
+            tableUnit.value.close()
+        }
+    }
+})
+
+const { isResponsive } = useTableResponsive(tableContainer, breakpoint);
 
 defineExpose({
     getData,
@@ -1454,28 +1478,30 @@ defineExpose({
             <slot name="source" />
         </div>
 
-        <!-- DATA TABLE -->
-        <Accordion hideDetails v-if="isDataset" :config="{
-            open: mutableConfig.showTable,
-            maxHeight: 10000,
-            body: {
-                backgroundColor: FINAL_CONFIG.style.chart.backgroundColor,
-                color: FINAL_CONFIG.style.chart.color,
-            },
-            head: {
-                backgroundColor: FINAL_CONFIG.style.chart.backgroundColor,
-                color: FINAL_CONFIG.style.chart.color,
-            }
-        }">
+        <component
+            v-if="isDataset"
+            :is="tableComponent.component"
+            v-bind="tableComponent.props"
+            ref="tableUnit"
+            @close="mutableConfig.showTable = false"
+        >
+            <template #title v-if="FINAL_CONFIG.table.useDialog">
+                {{ tableComponent.title }}
+            </template>
+            <template #actions v-if="FINAL_CONFIG.table.useDialog">
+                <button tabindex="0" class="vue-ui-user-options-button" @click="generateCsv(FINAL_CONFIG.userOptions.callbacks.csv)">
+                    <BaseIcon name="excel" :stroke="tableComponent.props.color"/>
+                </button>
+            </template>
             <template #content>
-                <div ref="tableContainer" class="vue-ui-chestnut-table">
-                    <div style="padding-top:36px; position: relative">
-                        <div role="button" tabindex="0" :style="`width:32px; position: absolute; top: 0; left:4px; padding: 0 0px; display: flex; align-items:center;justify-content:center;height: 36px; width: 32px; cursor:pointer; background:${FINAL_CONFIG.table.th.backgroundColor};`" @click="mutableConfig.showTable = false" @keypress.enter="mutableConfig.showTable = false">
+                <div ref="tableContainer" class="vue-ui-chestnut-table" :style="`${FINAL_CONFIG.table.useDialog ? '' : 'max-height: 300px;margin-top:24px'}`">
+                    <div :style="`${FINAL_CONFIG.table.useDialog ? '' : 'padding-top:36px;'}position: relative`">
+                        <div v-if="!FINAL_CONFIG.table.useDialog" role="button" tabindex="0" :style="`width:32px; position: absolute; top: 0; left:4px; padding: 0 0px; display: flex; align-items:center;justify-content:center;height: 36px; width: 32px; cursor:pointer; background:${FINAL_CONFIG.table.th.backgroundColor};`" @click="mutableConfig.showTable = false" @keypress.enter="mutableConfig.showTable = false">
                             <BaseIcon name="close" :stroke="FINAL_CONFIG.table.th.color" :stroke-width="2" />
                         </div>        
                         <div style="width: 100%" :class="{'vue-ui-responsive': isResponsive}">
                             <table data-cy="chestnut-table" class="vue-ui-data-table">
-                                <caption :style="{backgroundColor: FINAL_CONFIG.table.th.backgroundColor, color: FINAL_CONFIG.table.th.color, outline: FINAL_CONFIG.table.th.outline }" class="vue-ui-data-table__caption">
+                                <caption v-if="!FINAL_CONFIG.table.useDialog" :style="{backgroundColor: FINAL_CONFIG.table.th.backgroundColor, color: FINAL_CONFIG.table.th.color, outline: FINAL_CONFIG.table.th.outline }" class="vue-ui-data-table__caption">
                                     {{ FINAL_CONFIG.style.chart.layout.title.text }} <span v-if="FINAL_CONFIG.style.chart.layout.title.subtitle.text">{{  FINAL_CONFIG.style.chart.layout.title.subtitle.text }}</span>
                                 </caption>
                                 <thead>
@@ -1582,7 +1608,7 @@ defineExpose({
                     </div>
                 </div>
             </template>
-        </Accordion>
+        </component>
 
         <!-- v3 Skeleton loader -->
         <BaseScanner v-if="loading" />
@@ -1653,9 +1679,7 @@ defineExpose({
 
 .vue-ui-chestnut-table {
     width: 100%;
-    max-height: 300px;
     overflow: auto;
-    margin-top: 24px;
     position: relative;
 }
 .vue-ui-data-table thead {
