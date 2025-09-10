@@ -52,6 +52,7 @@ const builtInComponents = {
     VueUiTiremarks : defineAsyncComponent(() => import("../components/vue-ui-tiremarks.vue")),
     VueUiTreemap : defineAsyncComponent(() => import("../components/vue-ui-treemap.vue")),
     VueUiVerticalBar : defineAsyncComponent(() => import("../components/vue-ui-vertical-bar.vue")),
+    VueUiHorizontalBar : defineAsyncComponent(() => import("../components/vue-ui-vertical-bar.vue")),
     VueUiWaffle : defineAsyncComponent(() => import("../components/vue-ui-waffle.vue")),
     VueUiWheel : defineAsyncComponent(() => import("../components/vue-ui-wheel.vue")),
     VueUiWordCloud : defineAsyncComponent(() => import("../components/vue-ui-word-cloud.vue")),
@@ -65,6 +66,8 @@ const builtInComponents = {
     VueUiHistoryPlot : defineAsyncComponent(() => import('../components/vue-ui-history-plot.vue')),
     VueUiCirclePack : defineAsyncComponent(() => import('../components/vue-ui-circle-pack.vue')),
     VueUiWorld : defineAsyncComponent(() => import('../components/vue-ui-world.vue')),
+    VueUiChord: defineAsyncComponent(() => import('../components/vue-ui-chord.vue')),
+    VueUiRidgeline: defineAsyncComponent(() => import('../components/vue-ui-ridgeline.vue')),
 };
 
 const { vue_ui_dashboard: DEFAULT_CONFIG } = useConfig();
