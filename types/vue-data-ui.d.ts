@@ -1412,7 +1412,9 @@ declare module "vue-data-ui" {
         | "world"
         | "eye"
         | "chartRidgeline"
-        | "chartChord";
+        | "chartChord"
+        | "tableDialogOpen"
+        | "tableDialogClose";
 
     export const VueUiIcon: DefineComponent<{
         name: VueUiIconName;
@@ -2350,10 +2352,33 @@ declare module "vue-data-ui" {
             };
             resizeHandles?: {
                 backgroundColor?: string;
-                border?: string;
             };
         };
-        allowPrint?: boolean;
+        userOptions?: {
+            show?: boolean;
+            showOnChartHover?: boolean;
+            keepStateOnChartLeave?: boolean;
+            position?: 'right' | 'left';
+            buttons?: {
+                pdf?: boolean;
+                img?: boolean;
+                annotator?: boolean;
+            };
+            callbacks?: {
+                pdf?: null | (({ domElement, imageUri, base64 }: { domElement?: string; imageUri?: string; base64?: string} = {}) => void);
+                img?: null | (({ domElement, imageUri, base64 }: { domElement?: string; imageUri?: string; base64?: string} = {}) => void);
+                annotator?: null | (() => void);
+            };
+            buttonTitles?: {
+                pdf?: string;
+                img?: string;
+                annotator?: string;
+            };
+            print?: {
+                scale?: number;
+                filename?: string;
+            }
+        }
     };
 
     export type VueUiDashboardElement = {
