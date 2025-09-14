@@ -12,7 +12,7 @@ describe("<Slicer />", () => {
                         show: true,
                         color: "#42d392",
                         fontSize: 12,
-                        useResetSlot: true,
+                        useResetSlot: false,
                         highlightColor: "#3A3A3A",
                         startIndex: null,
                         endIndex: 5,
@@ -40,6 +40,22 @@ describe("<Slicer />", () => {
         const slicerStep = ref(1);
         const slicer = reactive({ start: 0, end: ds.length });
 
+        const events = reactive({
+            futureStart: null,
+            futureEnd: null,
+            updateStart: null,
+            updateEnd: null,
+            reset: false,
+            trapMouse: null,
+        });
+
+        const onFutureStart = (v) => (events.futureStart = v);
+        const onFutureEnd = (v) => (events.futureEnd = v);
+        const onUpdateStart = (v) => (events.updateStart = v);
+        const onUpdateEnd = (v) => (events.updateEnd = v);
+        const onReset = () => (events.reset = true);
+        const onTrapMouse = (v) => (events.trapMouse = v);
+
         return cy.mount({
             components: { Slicer },
             setup() {
@@ -48,7 +64,14 @@ describe("<Slicer />", () => {
                     maxLength,
                     slicerStep,
                     slicer,
-                    minimap: ds
+                    minimap: ds,
+                    events,
+                    onFutureStart,
+                    onFutureEnd,
+                    onUpdateStart,
+                    onUpdateEnd,
+                    onReset,
+                    onTrapMouse,
                 };
             },
             template: `
@@ -76,12 +99,16 @@ describe("<Slicer />", () => {
                 :refreshEndPoint="FINAL_CONFIG.style.chart.zoom.endIndex !== null ? FINAL_CONFIG.style.chart.zoom.endIndex + 1 : maxLength"
                 :enableRangeHandles="FINAL_CONFIG.style.chart.zoom.enableRangeHandles"
                 :enableSelectionDrag="FINAL_CONFIG.style.chart.zoom.enableSelectionDrag"
+                @futureStart="onFutureStart"
+                @futureEnd="onFutureEnd"
+                @update:start="onUpdateStart"
+                @update:end="onUpdateEnd"
+                @reset="onReset"
+                @trapMouse="onTrapMouse"
             />
         </div>
     `,
-        }).then(({ wrapper }) => {
-            return wrapper
-        })
+        }).then(({ wrapper }) => wrapper);
     }
 
     it('shows start & end labels on hover', () => {
@@ -130,10 +157,10 @@ describe("<Slicer />", () => {
                 .trigger('mousedown', { force: true })
                 .trigger('mousemove', {force: true, clientX: 400 })
 
-            cy.wrap(slicer).should('have.property', 'start', 3);
-            cy.wrap(slicer).should('have.property', 'end', 11);
-            cy.get('[data-cy="slicer-label-left"]').as('left').should('exist').and('be.visible').and('contain', '____ 3 ____')
-            cy.get('[data-cy="slicer-label-right"]').as('right').should('exist').and('be.visible').and('contain', '____ 10 ____')
+            cy.wrap(slicer).should('have.property', 'start', 12);
+            cy.wrap(slicer).should('have.property', 'end', 20);
+            cy.get('[data-cy="slicer-label-left"]').as('left').should('exist').and('be.visible').and('contain', '____ 12 ____')
+            cy.get('[data-cy="slicer-label-right"]').as('right').should('exist').and('be.visible').and('contain', '____ 19 ____')
         })
     })
 
@@ -153,10 +180,10 @@ describe("<Slicer />", () => {
                 .trigger('mousedown', { force: true })
                 .trigger('mousemove', {force: true, clientX: 400 })
 
-            cy.wrap(slicer).should('have.property', 'start', 3);
-            cy.wrap(slicer).should('have.property', 'end', 11);
-            cy.get('[data-cy="slicer-label-left"]').as('left').should('exist').and('be.visible').and('contain', '____ 3 ____')
-            cy.get('[data-cy="slicer-label-right"]').as('right').should('exist').and('be.visible').and('contain', '____ 10 ____')
+            cy.wrap(slicer).should('have.property', 'start', 12);
+            cy.wrap(slicer).should('have.property', 'end', 20);
+            cy.get('[data-cy="slicer-label-left"]').as('left').should('exist').and('be.visible').and('contain', '____ 12 ____')
+            cy.get('[data-cy="slicer-label-right"]').as('right').should('exist').and('be.visible').and('contain', '____ 19 ____')
         })
     })
 
@@ -175,7 +202,7 @@ describe("<Slicer />", () => {
                 .trigger('mousedown', { force: true })
                 .trigger('mousemove', {force: true, clientX: 400 })
 
-            cy.get('[data-cy="slicer-label-merged"]').should('be.visible').and('contain', '____ 3 ____')
+            cy.get('[data-cy="slicer-label-merged"]').should('be.visible').and('contain', '____ 17 ____')
             cy.get('[data-cy="slicer-label-left"]').should('not.be.visible')
             cy.get('[data-cy="slicer-label-right"]').should('not.be.visible')
         })
@@ -196,9 +223,27 @@ describe("<Slicer />", () => {
                 .trigger('mousedown', { force: true })
                 .trigger('mousemove', {force: true, clientX: 400 })
 
-            cy.get('[data-cy="slicer-label-merged"]').should('be.visible').and('contain', '____ 3 ____ - ____ 4 ____');
+            cy.get('[data-cy="slicer-label-merged"]').should('be.visible').and('contain', '____ 16 ____ - ____ 17 ____');
             cy.get('[data-cy="slicer-label-left"]').should('not.be.visible')
             cy.get('[data-cy="slicer-label-right"]').should('not.be.visible')
         })
-    })
+    });
+
+    it("emits trapMouse with the hovered trap index and null on mouseleave", () => {
+        mountSlicer().then((cmp) => {
+            const ev = cmp.vm.events;
+
+            cy.get('[data-cy="minimap"] svg [style*="pointer-events: all"]')
+                .eq(5)
+                .trigger("mouseenter", { force: true });
+
+            cy.wrap(ev).its("trapMouse").should("eq", 5);
+
+            cy.get('[data-cy="minimap"] svg [style*="pointer-events: all"]')
+                .eq(5)
+                .trigger("mouseleave", { force: true });
+
+            cy.wrap(ev).its("trapMouse").should("eq", null);
+        });
+    });
 });
