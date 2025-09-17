@@ -306,6 +306,9 @@ declare module "vue-data-ui" {
         selectionRadius?: number;
         indicatorColor?: string;
         verticalHandles?: boolean;
+        compact?: boolean;
+        merged?: boolean;
+        frameColor?: string;
     };
 
     export type ChartZoom = {
@@ -5563,6 +5566,7 @@ declare module "vue-data-ui" {
                     backgroundColor?: string;
                     color?: string;
                 };
+                filename?: string | number;
             };
             closeButtons?: {
                 backgroundColor?: string;
@@ -5645,6 +5649,7 @@ declare module "vue-data-ui" {
             to?: string;
             total?: string;
             totalRows?: string;
+            filename?: string;
         };
         useChart?: boolean;
     };
@@ -6189,6 +6194,7 @@ declare module "vue-data-ui" {
         zoomEndIndex?: number | null;
         zoomEnableRangeHandles?: boolean;
         zoomEnableSelectionDrag?: boolean;
+        zoomCompact?: boolean;
         userOptionsPosition?: "right" | "left";
         userOptionsButtons?: {
             tooltip?: boolean;
