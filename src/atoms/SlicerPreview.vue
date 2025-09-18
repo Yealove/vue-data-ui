@@ -184,23 +184,28 @@ const useMini = computed(() => hasMinimap.value && props.minimapCompact);
 
 const wrapperWidth = ref(0);
 
+const emitFutureStart = throttle((v) => emit('futureStart', v), 0);
+const emitFutureEnd = throttle((v) => emit('futureEnd', v), 0);
+
 const start = computed({
-    get() { return startValue.value },
+    get: () => startValue.value,
     set(raw) {
         const v = Math.min(raw, endValue.value - 1);
+        if (v === startValue.value) return;
         startValue.value = v;
         if (rangeStart.value) rangeStart.value.value = String(v);
-        emit('futureStart', v);
+        if (isRanging.value) emitFutureStart(v);
     }
 });
 
 const end = computed({
-    get() { return endValue.value },
+    get: () => endValue.value,
     set(raw) {
         const v = Math.max(raw, startValue.value + 1);
+        if (v === endValue.value) return;
         endValue.value = v;
         if (rangeEnd.value) rangeEnd.value.value = String(v);
-        emit('futureEnd', v);
+        if (isRanging.value) emitFutureEnd(v);
     }
 });
 
@@ -342,12 +347,16 @@ const resizeObserver = ref(null);
 onMounted(() => {
     if (hasMinimap.value) {
         const handleResize = throttle(() => {
-            const { width, height } = useResponsive({
-                chart: minimapWrapper.value,
-            });
-            svgMinimap.value.width = width;
-            svgMinimap.value.height = height - 47;
-        });
+        if (!minimapWrapper.value) return;
+        const { width, height } = useResponsive({ chart: minimapWrapper.value });
+        const W = Math.max(0, Math.round(width));
+        const H = Math.max(0, Math.round(height - 47));
+
+        if (W !== svgMinimap.value.width || H !== svgMinimap.value.height) {
+            svgMinimap.value.width  = W;
+            svgMinimap.value.height = H;
+        }
+        }, 50);
 
         resizeObserver.value = new ResizeObserver(handleResize);
         resizeObserver.value.observe(minimapWrapper.value);
@@ -407,7 +416,7 @@ function getBarWidth(i, j) {
 
 const globalRange = computed(() => {
     const vals = [];
-    if (Array.isArray(props.minimap) && props.minimap.length) {
+    if (Array.isArray(props.minimap) && props.minimap.length && props.minimapMerged) {
         vals.push(...props.minimap.filter(Number.isFinite));
     }
     if (Array.isArray(props.allMinimaps) && props.allMinimaps.length) {
@@ -484,29 +493,24 @@ function makeMiniChart(ds, smooth = false) {
     }
     const H = Math.max(1, svgMinimap.value.height);
 
-    const finite = ds.filter(Number.isFinite);
-    const seriesMin = finite.length ? Math.min(...finite) : 0;
-    const seriesMax = finite.length ? Math.max(...finite) : 0;
-
-    const mapYSeries = makeSmartMapY(seriesMin, seriesMax, H);
+    const mapYSeries = makeSmartMapY(allMin.value, allMax.value, H);
 
     const len = ds.length;
     const s = Math.min(Math.max(0, startMini.value), Math.max(0, len - 1));
     const e = Math.min(len, Math.max(s + 1, endMini.value));
 
     const points = ds.map((dp, i) => {
-        const valid = Number.isFinite(dp);
+        const val = props.cutNullValues ? dp : dp === null ? 0 : dp;
+        const valid = Number.isFinite(val);
         const x = unitWidthX.value * i + (props.minimapCompact ? 0 : unitWidthX.value / 2);
-        const y0 =
-            seriesMin < 0 && seriesMax > 0
-                ? mapYSeries(0)
-                : mapYSeries(0);
+        const y0 = mapYSeries(0);
+
 
         return {
             x,
-            y: valid ? mapYSeries(dp) : NaN,
-            v: dp,
-            value: valid ? dp : null,
+            y: valid ? mapYSeries(val) : NaN,
+            v: val,
+            value: valid ? val : null,
             y0,
             i,
         };
@@ -703,6 +707,7 @@ let activeMoveHandler = null;
 let activeEndHandler = null;
 
 const startDragging = (event) => {
+    isRanging.value = true;
     showTooltip.value = true;
     if (!props.enableSelectionDrag) return;
 
@@ -801,15 +806,21 @@ const showTooltip = ref(false);
 
 function setTooltipLeft() {
     if (tooltipLeft.value) {
-        tooltipLeftWidth.value = tooltipLeft.value.getBoundingClientRect().width;
+        const w = Math.round(tooltipLeft.value.getBoundingClientRect().width);
+        if (w !== tooltipLeftWidth.value) tooltipLeftWidth.value = w;
+    }
+}
+function setTooltipRight() {
+    if (tooltipRight.value) {
+        const w = Math.round(tooltipRight.value.getBoundingClientRect().width);
+        if (w !== tooltipRightWidth.value) tooltipRightWidth.value = w;
     }
 }
 
-function setTooltipRight() {
-    if (tooltipRight.value) {
-        tooltipRightWidth.value = tooltipRight.value.getBoundingClientRect().width;
-    }
-}
+onUpdated(() => {
+    setTooltipLeft();
+    setTooltipRight();
+});
 
 const leftLabelZIndex = ref(0);
 
@@ -859,46 +870,53 @@ watch(() => props.labelRight, () => {
     nextTick(setTooltipRight);
 }, { deep: true });
 
-const useCustomFormat = ref(false);
-
 const labels = computed(() => {
-    let left = { text: '' }, right = { text: '' };
-    useCustomFormat.value = false;
+    let leftText = '';
+    let rightText = '';
+
+    let useCustomFormat = false;
 
     if (isFunction(props.customFormat)) {
         try {
-            const customLeft = props.customFormat({
-                absoluteIndex: startValue.value,
-                seriesIndex: startValue.value,
-                datapoint: props.selectedSeries
-            });
-            const customRight = props.customFormat({
-                absoluteIndex: endValue.value - 1,
-                seriesIndex:  - 1,
-                datapoint: props.selectedSeries
-            });
-            if (typeof customLeft === 'string' && typeof customRight === 'string') {
-                left.text = customLeft;
-                right.text = customRight;
-                useCustomFormat.value = true;
-            }
-        } catch (err) {
-            console.warn('Custom format cannot be applied on zoom labels.');
-            useCustomFormat.value = false;
+        const customLeft = props.customFormat({
+            absoluteIndex: startValue.value,
+            seriesIndex: startValue.value,
+            datapoint: props.selectedSeries
+        });
+        
+        const customRight = props.customFormat({
+            absoluteIndex: endValue.value - 1,
+            seriesIndex: -1,
+            datapoint: props.selectedSeries
+        });
+
+        if (typeof customLeft === 'string' && typeof customRight === 'string') {
+            leftText = customLeft;
+            rightText = customRight;
+            useCustomFormat = true;
+        }
+
+        } catch (_) {
+            useCustomFormat = false;
         }
     }
 
-    if (!useCustomFormat.value) {
-        left = props.usePreciseLabels ? props.preciseLabels.find(t => t.absoluteIndex === startValue.value) : props.timeLabels.find(t => t.absoluteIndex === startValue.value);
+    if (!useCustomFormat) {
+        const left = props.usePreciseLabels
+        ? props.preciseLabels.find(t => t.absoluteIndex === startValue.value)
+        : props.timeLabels.find(t => t.absoluteIndex === startValue.value);
 
-        right = props.usePreciseLabels ? props.preciseLabels.find(t => t.absoluteIndex === endValue.value - 1) : props.timeLabels.find(t => t.absoluteIndex === endValue.value - 1);
+        const right = props.usePreciseLabels
+        ? props.preciseLabels.find(t => t.absoluteIndex === endValue.value - 1)
+        : props.timeLabels.find(t => t.absoluteIndex === endValue.value - 1);
+
+        leftText = left ? left.text : '';
+        rightText = right ? right.text : '';
     }
 
-    return {
-        left: left ? left.text : '',
-        right: right ? right.text : ''
-    };
+    return { left: leftText, right: rightText };
 });
+
 
 onBeforeUnmount(() => {
     if (resizeObserver.value) resizeObserver.value.disconnect();
