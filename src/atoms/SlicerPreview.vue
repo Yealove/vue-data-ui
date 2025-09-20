@@ -24,6 +24,10 @@ import { useResponsive } from '../useResponsive';
 import BaseIcon from './BaseIcon.vue';
 
 const props = defineProps({
+    immediate: {
+        type: Boolean,
+        default: true
+    },
     background: {
         type: String,
         default: '#FFFFFF'
@@ -203,7 +207,12 @@ const start = computed({
         if (v === startValue.value) return;
         startValue.value = v;
         if (rangeStart.value) rangeStart.value.value = String(v);
-        if (isRanging.value) emitFutureStart(v);
+
+        if (props.immediate) {
+            emit('update:start', Number(v));
+        } else if (isRanging.value) {
+            emitFutureStart(v);
+        }
     }
 });
 
@@ -214,7 +223,10 @@ const end = computed({
         if (v === endValue.value) return;
         endValue.value = v;
         if (rangeEnd.value) rangeEnd.value.value = String(v);
-        if (isRanging.value) emitFutureEnd(v);
+
+        if (props.immediate) {
+            emit('update:end', Number(v));
+        } else if (isRanging.value) emitFutureEnd(v);
     }
 });
 
@@ -237,8 +249,10 @@ let _commitTimeout = null;
 
 function commitImmediately() {
     clearTimeout(_commitTimeout);
-    emit('update:start', Number(startValue.value));
-    emit('update:end', Number(endValue.value));
+    if (!props.immediate) {
+        emit('update:start', Number(startValue.value));
+        emit('update:end', Number(endValue.value));
+    }
     isRanging.value = false;
 }
 
@@ -595,29 +609,44 @@ const miniToAbs = (i) => Math.round(props.min + i);
 
 const startForInput = computed({
     get() {
-        return useMini.value ? startMini.value : start.value;
+        return useMini.value ? startMini.value : Number(start.value);
     },
     set(v) {
         if (useMini.value) {
-            setStartValue(miniToAbs(v));
+        const n = Math.round(+v || 0);
+        setStartValue(miniToAbs(n));
         } else {
-            setStartValue(v);
+            let proposed = Math.round(+v || 0);
+            const maxAllowed = Number(endValue.value) - 1;
+            const clamped = Math.min(Math.max(props.min, proposed), maxAllowed);
+            if (rangeStart.value) {
+                rangeStart.value.valueAsNumber = clamped
+            };
+            setStartValue(clamped);
         }
     }
 });
 
 const endForInput = computed({
     get() {
-        return useMini.value ? Math.max(startMini.value, endMini.value - 1) : end.value;
+        return useMini.value ? Math.max(startMini.value, endMini.value - 1) : Number(end.value);
     },
     set(v) {
         if (useMini.value) {
-            setEndValue(miniToAbs(v + 1));
+            const n = Math.round(+v || 0);
+            setEndValue(miniToAbs(n + 1));
         } else {
-            setEndValue(v);
+            let proposed = Math.round(+v || 0);
+            const minAllowed = Number(startValue.value) + 1;
+            const clamped = Math.max(minAllowed, Math.min(proposed, props.max));
+            if (rangeEnd.value) {
+                rangeEnd.value.valueAsNumber = clamped;
+            }
+            setEndValue(clamped);
         }
     }
 });
+
 
 function setSelectedTrap(v) {
     selectedTrap.value = absToMiniStart(props.valueStart) + v;
@@ -1230,7 +1259,7 @@ defineExpose({
                             <g v-for="(dp, i) in allMinimapLines.filter(d => d.type === 'bar')">
                                 <template v-for="(r, j) in dp.points">
                                     <rect
-                                        v-if="dp && dp.hasSelection && dp.selectionSet && dp.isVisible && !isNaN(r.y)"
+                                        v-if="dp && dp.isVisible && !isNaN(r.y)"
                                         :x="getBarX(r.x, i, j)"
                                         :y="r.v >= 0 ? r.y : r.y0"
                                         :width="getBarWidth(i, j)"
