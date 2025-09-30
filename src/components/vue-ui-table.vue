@@ -1,6 +1,7 @@
 <template>
     <div class="vue-ui-table-main" :style="`font-family: ${FINAL_CONFIG.fontFamily}`">
-        <div class="vue-ui-table-export-hub" v-if="FINAL_CONFIG.style.exportMenu.show">
+        <div class="vue-ui-table-export-hub" 
+            :style="{ top: exportButtonTop + 'px' }" v-if="FINAL_CONFIG.style.exportMenu.show">
             <button @click="isExportRequest = !isExportRequest" v-html="icons.export"
                 :style="`background:${FINAL_CONFIG.style.exportMenu.backgroundColor};color:${FINAL_CONFIG.style.exportMenu.color}`" />
             <div class="vue-ui-table-export-hub-dropdown" :data-is-open="isExportRequest || 'false'"
@@ -35,11 +36,13 @@
                         </button>
                     </div>
                     <div class="vue-ui-table-dialog-field">
-                        <label class="label vue-ui-table-dialog-input-label">
-                            {{ FINAL_CONFIG.translations.filename }}
-                            <input ref="filenameInputRef" @keydown.space.stop pattern=".*" class="vue-ui-table-dialog-input" type="text" v-model="filename"/>
+                        <label class="label vue-ui-table-dialog-input-label" style="width:100%;">
+                            <span style="width:fit-content">
+                                {{ FINAL_CONFIG.translations.filename }}
+                            </span>
+                            <input name="filename" ref="filenameInputRef" @keydown.space.stop pattern=".*" class="vue-ui-table-dialog-input" type="text" v-model="filename"/>
                         </label>
-                        <button class="vue-ui-table-dialog-field-button" @click="filename = ''">
+                        <button v-if="!!filename" class="vue-ui-table-dialog-field-button" @click="filename = ''">
                             <BaseIcon name="close" :stroke="FINAL_CONFIG.style.exportMenu.color" :size="18"/>
                         </button>
                     </div>
@@ -48,10 +51,45 @@
         </div>
         <div class="vue-ui-table__wrapper" :style="`max-height:${FINAL_CONFIG.maxHeight}px`" ref="tableWrapper">
             <table class="vue-ui-table">
+                <caption
+                    class="vue-ui-table__caption"
+                    ref="tableCaption" 
+                    v-if="FINAL_CONFIG.style.title.text"
+                    :style="{
+                        textAlign: FINAL_CONFIG.style.title.textAlign,
+                        paddingLeft: FINAL_CONFIG.style.title.paddingLeft + 'px',
+                        paddingRight: FINAL_CONFIG.style.title.paddingRight + 'px',
+                        backgroundColor: FINAL_CONFIG.style.title.backgroundColor,
+                        boxShadow: `${FINAL_CONFIG.style.title.backgroundColor} -1px 0px 0px 0px`
+                    }"
+                >
+                    <span
+                        :style="{
+                            fontSize: FINAL_CONFIG.style.title.fontSize + 'px',
+                            fontWeight: FINAL_CONFIG.style.title.bold ? 'bold' : 'normal',
+                            color: FINAL_CONFIG.style.title.color
+                        }"
+                    >
+                        {{ FINAL_CONFIG.style.title.text }}
+                    </span>
+                    <template v-if="FINAL_CONFIG.style.title.subtitle.text">
+                        <br>
+                        <span
+                            :style="{
+                                fontSize: FINAL_CONFIG.style.title.subtitle.fontSize,
+                                fontWeight: FINAL_CONFIG.style.title.subtitle.bold ? 'bold' : 'normal',
+                                color: FINAL_CONFIG.style.title.subtitle.color
+                            }"
+                        >
+                            {{ FINAL_CONFIG.style.title.subtitle.text }}
+                        </span>
+                    </template>
+                </caption>
                 <!-- TABLE HEAD -->
                 <thead id="tableHead" class="vue-ui-table__head" :style="{
                     background: FINAL_CONFIG.style.th.backgroundColor,
-                    boxShadow: `-1px 0 0 ${FINAL_CONFIG.style.th.backgroundColor}`
+                    boxShadow: `-1px 0 0 ${FINAL_CONFIG.style.th.backgroundColor}`,
+                    top: exportButtonTop - 3 + 'px'
                 }">
                     <!-- HEADERS -->
                     <tr>
@@ -573,6 +611,7 @@ import { useConfig } from "../useConfig";
 import VueUiXy from "./vue-ui-xy.vue";
 import VueUiDonut from "./vue-ui-donut.vue";
 import BaseIcon from "../atoms/BaseIcon.vue";
+import { computed, ref } from "vue";
 
 export default {
     name: "vue-ui-table",
@@ -689,6 +728,19 @@ export default {
                 }
             }),
             filename: '',
+        }
+    },
+    setup() {
+        const tableCaption = ref(null);
+
+        const exportButtonTop = computed(() => {
+            if (!tableCaption.value) return 3;
+            return tableCaption.value.getBoundingClientRect().height + 3;
+        });
+
+        return {
+            tableCaption,
+            exportButtonTop
         }
     },
     mounted() {
@@ -1866,6 +1918,13 @@ export default {
     top: 0;
 }
 
+.vue-ui-table-main caption {
+    caption-side: top;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
 .vue-ui-table {
     width: 100%;
     position: relative;
@@ -2396,7 +2455,6 @@ button.th-reset:not(:disabled) {
 .vue-ui-table-main .vue-ui-table-export-hub {
     left: 20px;
     position: absolute;
-    top: 3px;
     z-index: 1001;
 }
 
@@ -2447,10 +2505,10 @@ button.th-reset:not(:disabled) {
 }
 
 .vue-ui-table-main .vue-ui-table-dialog-field {
-    width: calc(100% - 12px);
-    padding-right: 12px;
-    align-items:center;
+    width: 100%;
     position: relative;
+    display: flex;
+    flex-direction: column;
 }
 
 .vue-ui-table-dialog-field {
@@ -2458,7 +2516,7 @@ button.th-reset:not(:disabled) {
 }
 
 input.vue-ui-table-dialog-input {
-    width: calc(100% - 44px);
+    width: 100% !important;
     padding-right: 44px;
 }
 
@@ -2468,8 +2526,8 @@ input.vue-ui-table-dialog-input {
     box-shadow: none;
     outline: none;
     position: absolute;
-    right: 4px;
-    top: 26px;
+    right: 0px;
+    top: 0px;
     min-width: 36px !important;
     width: 36px;
 }
