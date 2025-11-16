@@ -5326,7 +5326,7 @@ declare module "vue-data-ui" {
     export type VueUiVerticalBarConfig = {
         debug?: boolean;
         loading?: boolean;
-        autoSize?: boolean;
+        autoSize?: boolean; // Legacy - unused
         responsive?: boolean;
         theme?: Theme;
         customPalette?: string[];
@@ -5341,12 +5341,14 @@ declare module "vue-data-ui" {
             chart?: {
                 backgroundColor?: string;
                 color?: string;
+                width?: number;
+                height?: number;
                 layout?: {
                     bars?: {
                         sort?: "desc" | "asc" | "none";
                         useStroke?: boolean;
                         strokeWidth?: number;
-                        height?: number;
+                        height?: number; // Legacy - unused
                         gap?: number;
                         borderRadius?: number;
                         offsetX?: number;
@@ -5496,6 +5498,7 @@ declare module "vue-data-ui" {
         toggleFullscreen(): void
         showSeries(name: string): void
         hideSeries(name: string): void
+        autoSize(): void // Legacy - unused, just logs a warning
     }
 
     export type VueUiHorizontalBarExpose = VueUiVerticalBarExpose; // v3 renaming
@@ -8817,6 +8820,7 @@ declare module "vue-data-ui" {
 
     export type VueUiCirclePackConfig = {
         debug?: boolean; // v3
+        responsive?: boolean;
         loading?: boolean; // v3
         events?: { // v3
             datapointEnter?: VueUiCirclePackEvent; // v3
@@ -8840,6 +8844,8 @@ declare module "vue-data-ui" {
         style?: {
             fontFamily?: string;
             chart?: {
+                width?: number;
+                height?: number;
                 backgroundColor?: string;
                 color?: string;
                 title?: ChartTitle;
