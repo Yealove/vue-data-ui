@@ -210,7 +210,7 @@ function resumeVduiBuild() {
 </script>
 
 <template>
-    <Box>
+    <Box comp="VueUiCarouselTable" :dataset="dataset" :config="config">
         <template #title>VueUiCarouselTable</template>
 
         <template #local>
@@ -290,11 +290,6 @@ function resumeVduiBuild() {
 
         <template #knobs>
             <ConfigKnobs :model="model" @change="step += 1"/>
-        </template>
-
-        <template #config>
-            {{ config }}
-        </template>
-    
+        </template>    
     </Box>
 </template>
