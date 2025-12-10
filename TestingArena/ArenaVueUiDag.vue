@@ -69,6 +69,7 @@ const dataset = ref({
 const model = createModel([
     CHECKBOX('loading', { def: false }),
     CHECKBOX('debug', { def: true }),
+    CHECKBOX('responsive', { def: false }),
     CHECKBOX('userOptions.buttons.pdf', { def: true }),
     CHECKBOX('userOptions.buttons.img', { def: true }),
     CHECKBOX('userOptions.buttons.svg', { def: true }),
@@ -198,6 +199,15 @@ const configTheme = computed(() => ({
     <Box comp="VueUiDag" :dataset="dataset" :config="config">
         <template #title>VueUiDag</template>
 
+        <template #responsive>
+            <div style="width: 600px; height: 600px; resize: both; overflow: auto; background: white">
+                <LocalVueUiDag :dataset="dataset" :config="{
+                    ...config,
+                    responsive: true
+                }"/>
+            </div>
+        </template>
+
         <template #local>
                     <LocalVueUiDag :dataset="dataset" :config="config" ref="local">
             <!-- <template #node-label="{ node }">
@@ -213,6 +223,11 @@ const configTheme = computed(() => ({
             </template>
             <template #tooltip-node="{ node }">
                 {{ node }}
+            </template> -->
+            <!-- <template #free-node-label="{ node }">
+                <text :x="node.x" text-anchor="middle" :y="node.y + node.height" fill="red">
+                    {{ node.label }}
+                </text>
             </template> -->
         </LocalVueUiDag>
         </template>
