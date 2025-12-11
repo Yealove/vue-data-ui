@@ -39,7 +39,8 @@ import {
     shiftHue,
     themePalettes,
     XMLNS,
-    treeShake
+    treeShake,
+    findArcMidpoint
 } from '../lib';
 import { throttle } from "../canvas-lib";
 import { useConfig } from "../useConfig";
@@ -121,6 +122,10 @@ const labels_name_fontSize = computed({
     get: () => FINAL_CONFIG.value.style.chart.layout.labels.name.fontSize,
     set: v => v
 });
+const labels_inline_fontSize = computed({
+    get: () => FINAL_CONFIG.value.style.chart.layout.labels.dataLabels.smallArcClusterFontSize,
+    set: v => v
+});
 
 
 let rafScheduled = false
@@ -158,6 +163,12 @@ const resizeAndReflow = () => {
                 baseSize: cfg.style.chart.layout.labels.name.fontSize,
                 minSize:  cfg.style.chart.layout.labels.name.minFontSize,
                 sizeRef:  labels_name_fontSize,
+            },
+            {
+                selector: '.vue-data-ui-datalabel-inline',
+                baseSize: cfg.style.chart.layout.labels.dataLabels.smallArcClusterFontSize,
+                minSize:  cfg.style.chart.layout.labels.name.minFontSize,
+                sizeRef:  labels_inline_fontSize,
             },
         ];
 
@@ -425,68 +436,70 @@ const { loading, FINAL_DATASET, manualLoading, skeletonDataset } = useLoading({
 });
 
 const isFirstLoad = ref(true);
-const animatedValues = shallowRef([]);
+const animationProgress = ref(0);
+const hasAnimated = ref(false);
 
-function animateWithGhost(finalValues, duration = 1000, stagger = 50) {
-    return new Promise(resolve => {
-        const N = finalValues.length;
-        animatedValues.value = Array(N).fill(0);
-        let completed = 0;
+let startAnimationFrameIdentifier = null;
 
-        finalValues.forEach((target, i) => {
-            setTimeout(() => {
-                const start = performance.now();
-                function animate(now) {
-                    const p = Math.min((now - start) / duration, 1);
-                    const eased = easeOutCubic(p);
-                    animatedValues.value[i] = target * eased;
-                    animatedValues.value = [...animatedValues.value];
-                    if (p < 1) {
-                        requestAnimationFrame(animate);
-                        requestAnimationFrame(resizeAndReflow);
-                    } else {
-                        animatedValues.value[i] = target;
-                        animatedValues.value = [...animatedValues.value];
-                        completed += 1;
-                        if (completed === N) resolve();
-                        requestAnimationFrame(resizeAndReflow);
-                    }
-                }
-                requestAnimationFrame(animate);
-            }, i * stagger);
-        });
+function runStartAnimation(durationInMilliseconds = 1000) {
+    return new Promise((resolve) => {
+        const animationStartTime = performance.now();
+
+        function step(currentTime) {
+            const elapsedTime = currentTime - animationStartTime;
+            const progressRatio = Math.min(
+                elapsedTime / durationInMilliseconds,
+                1
+            );
+
+            const easedProgress = easeOutCubic(progressRatio);
+            animationProgress.value = easedProgress;
+
+            if (progressRatio < 1) {
+                startAnimationFrameIdentifier = requestAnimationFrame(step);
+            } else {
+                animationProgress.value = 1;
+                startAnimationFrameIdentifier = null;
+                resolve();
+            }
+        }
+
+        if (startAnimationFrameIdentifier !== null) {
+            cancelAnimationFrame(startAnimationFrameIdentifier);
+        }
+
+        animationProgress.value = 0;
+        startAnimationFrameIdentifier = requestAnimationFrame(step);
     });
 }
 
-const hasAnimated = ref(false);
-
 watch(
     () => loading.value,
-    async (loadingNow) => {
-        if (loadingNow || hasAnimated.value) return;
+    async (isLoadingNow) => {
+        if (isLoadingNow || hasAnimated.value) {
+            return;
+        }
 
-        // Avoid animating skeleton dataset
-        const isSkeleton = FINAL_DATASET.value === skeletonDataset;
-        const startAnimation = FINAL_CONFIG.value.startAnimation?.show;
+        const isSkeletonDataset = FINAL_DATASET.value === skeletonDataset;
+        const startAnimationIsEnabled =
+            FINAL_CONFIG.value.startAnimation?.show;
 
-        if (!isSkeleton && startAnimation) {
+        if (!isSkeletonDataset && startAnimationIsEnabled) {
             hasAnimated.value = true;
 
-            const finalValues = FINAL_DATASET.value.map(ds =>
-                ds.values.reduce((a, b) => a + b, 0)
-            );
+            const durationInMilliseconds =
+                FINAL_CONFIG.value.startAnimation.durationMs || 1000;
 
-            await animateWithGhost(
-                finalValues,
-                FINAL_CONFIG.value.startAnimation.durationMs,
-                FINAL_CONFIG.value.startAnimation.staggerMs
-            );
+            await runStartAnimation(durationInMilliseconds);
+        } else {
+            animationProgress.value = 1;
         }
 
         isFirstLoad.value = false;
     },
     { immediate: true }
 );
+
 
 const { userOptionsVisible, setUserOptionsVisibility, keepUserOptionState } = useUserOptionState({ config: FINAL_CONFIG.value });
 const { svgRef } = useChartAccessibility({ config: FINAL_CONFIG.value.style.chart.title });
@@ -582,7 +595,15 @@ const emit = defineEmits(['selectLegend', 'selectDatapoint'])
 
 const immutableSet = computed(() => {
     return FINAL_DATASET.value
-        .map((serie, i) => {
+        .sort((a, b) => {
+            const sumA = Array.isArray(a.values) ? a.values.reduce((x, y) => x + y, 0) : a.value ?? 0;
+            const sumB = Array.isArray(b.values) ? b.values.reduce((x, y) => x + y, 0) : b.value ?? 0;
+
+            if (a.ghost && !b.ghost) return 1;
+            if (b.ghost && !a.ghost) return -1;
+
+            return sumB - sumA; // descending order
+        }).map((serie, i) => {
             return {
                 name: serie.name,
                 color: convertColorToHex(serie.color) || customPalette.value[i] || palette[i] || palette[i % palette.length],
@@ -594,7 +615,7 @@ const immutableSet = computed(() => {
                 ghost: false,
                 pattern: `pattern_${uid.value}_${i}`
             }
-        });
+        })
 });
 
 // v3 - Stop skeleton loader when props.dataset becomes valid
@@ -623,6 +644,7 @@ function getData() {
 
 const segregated = ref([]);
 const isAnimating = ref(false);
+const animatingIndex = ref(null);
 
 function animateValue({ from, to, duration, onUpdate, onDone, easing = easeOutCubic }) {
     const start = performance.now();
@@ -647,6 +669,7 @@ function segregate(index) {
     let initVal = source.value;
 
     if (segregated.value.includes(index)) {
+        // Restore series
         segregated.value = segregated.value.filter(s => s !== index);
         const targetVal = target.value;
 
@@ -658,6 +681,8 @@ function segregate(index) {
 
         function doAnimUp() {
             isAnimating.value = true;
+            animatingIndex.value = index;
+
             animateValue({
                 from: initVal,
                 to: targetVal,
@@ -671,6 +696,7 @@ function segregate(index) {
                 onDone: () => {
                     setFinalUpState();
                     isAnimating.value = false;
+                    animatingIndex.value = null;
                 }
             });
         }
@@ -682,6 +708,7 @@ function segregate(index) {
             requestAnimationFrame(resizeAndReflow);
         }
     } else if (segregated.value.length < immutableSet.value.length - 1) {
+        // Hide series
         function setFinalDownState() {
             segregated.value.push(index);
             mutableSet.value = mutableSet.value.map((ds, i) =>
@@ -691,6 +718,8 @@ function segregate(index) {
 
         function doAnimDown() {
             isAnimating.value = true;
+            animatingIndex.value = index;
+
             animateValue({
                 from: initVal,
                 to: 0,
@@ -705,6 +734,7 @@ function segregate(index) {
                     setFinalDownState();
                     requestAnimationFrame(resizeAndReflow);
                     isAnimating.value = false;
+                    animatingIndex.value = null;
                 }
             });
         }
@@ -757,45 +787,57 @@ function hideSeries(name) {
 }
 
 
-const _total = computed(() => FINAL_DATASET.value.reduce((sum, ds) => sum + ds.values.reduce((a, b) => a + b, 0), 0));
+const _total = computed(() =>
+    FINAL_DATASET.value.reduce(
+        (sum, datasetEntry) =>
+            sum + datasetEntry.values.reduce((a, b) => a + b, 0),
+        0
+    )
+);
 
 const donutSet = computed(() => {
     if (isFirstLoad.value && !loading.value) {
-        const arcs = animatedValues.value.map((v, i) => ({
-            ...immutableSet.value[i],
-            value: v,
-            color: immutableSet.value[i].color,
+        const currentProgress = animationProgress.value;
+
+        const arcs = immutableSet.value.map((serie) => ({
+            ...serie,
+            value: serie.value * currentProgress,
+            color: serie.color,
             ghost: false,
         }));
-        const ghost = _total.value - animatedValues.value.reduce((a, b) => a + b, 0);
-        if (ghost > 0) {
+
+        const ghostValue = _total.value * (1 - currentProgress);
+        if (ghostValue > 0) {
             arcs.push({
-                name: '__ghost__',
-                value: ghost,
-                color: 'transparent',
+                name: "__ghost__",
+                value: ghostValue,
+                color: "transparent",
                 ghost: true,
             });
         }
+
         return arcs;
     } else {
-        mutableSet.value.forEach((ds, i) => {
-            if ([null, undefined].includes(ds.values)) {
+        mutableSet.value.forEach((datasetEntry) => {
+            if ([null, undefined].includes(datasetEntry.values)) {
                 return {
-                    ...ds,
-                    values: []
-                }
+                    ...datasetEntry,
+                    values: [],
+                };
             }
-        })
+        });
+
         return mutableSet.value
-            .map((serie, i) => {
+            .map((serie, seriesIndex) => {
                 return {
                     ...serie,
-                    seriesIndex: i
-                }
+                    seriesIndex,
+                };
             })
-            .filter((_, i) => !segregated.value.includes(i))
+            .filter((_, seriesIndex) => !segregated.value.includes(seriesIndex));
     }
 });
+
 
 const legendSet = computed(() => {
 
@@ -913,6 +955,243 @@ function isArcBigEnough(arc) {
     return arc.proportion * 100 > FINAL_CONFIG.value.style.chart.layout.labels.dataLabels.hideUnderValue;
 }
 
+function isSmallArc(arc, seriesIndex) {
+    const minimumVisible = FINAL_CONFIG.value.style.chart.layout.labels.dataLabels.hideUnderValue;
+    const threshold = FINAL_CONFIG.value.style.chart.layout.labels.dataLabels.smallArcClusterThreshold;
+
+    const baseProportion = baseProportions.value[seriesIndex] ?? arc.proportion ?? 0;
+    const percentage = baseProportion * 100;
+
+    return (
+        percentage > minimumVisible &&
+        percentage <= threshold
+    );
+}
+
+const smallArcLayoutsClassic = computed(() => {
+    if (FINAL_CONFIG.value.type !== "classic") return {};
+
+    const layouts = {};
+    const arcs = noGhostDonut.value || [];
+    if (!arcs.length) return layouts;
+
+    const configObject = FINAL_CONFIG.value;
+    const centerX = svg.value.width / 2;
+    const centerY = svg.value.height / 2;
+
+    const topPadding = padding.value.top + 16;
+    const bottomPadding = svg.value.height - padding.value.bottom - 16;
+
+    // Base height for a single small label (percentage + one name line)
+    const baseLineHeight = labels_inline_fontSize.value * 1.5;
+
+    const markerTextGap = 8;
+    const radialOffset = 24;
+
+    const leftBandMarkerX = centerX - (minSize.value + radialOffset);
+    const rightBandMarkerX = centerX + (minSize.value + radialOffset);
+
+    const isCurved = !!configObject.style.chart.layout.curvedMarkers;
+
+    function makeConnectorPathForSmallArcs({ midX, midY, bandX, bandY }) {
+        if (!isCurved) {
+            const elbowX = midX;
+            const elbowY = bandY;
+            return `M ${midX} ${midY} L ${elbowX} ${elbowY} L ${bandX} ${bandY}`;
+        }
+
+        const side = bandX < centerX ? -1 : 1;
+        const offset = 12;
+
+        const controlPointX = (midX + bandX) / 2 + side * offset;
+        const controlPointY = midY + (bandY - midY) * 0.5;
+
+        return `M ${midX} ${midY} Q ${controlPointX} ${controlPointY} ${bandX} ${bandY}`;
+    }
+
+    // All small arcs (top and bottom), excluding segregated / animating ones
+    const candidates = arcs
+        .map((arc, index) => {
+            const { x: midX, y: midY } = findArcMidpoint(arc.path);
+            const inlineMarkerX = calcMarkerOffsetX(arc).x;
+            const inlineMarkerY = calcMarkerOffsetY(arc) - 3.5;
+
+            const nameLines = String(arc.name ?? "").split(/\n/g);
+            const extraNameLines = Math.max(0, nameLines.length - 1);
+
+            const lineHeight = labels_inline_fontSize.value * 1.2;
+            const extraHeight = extraNameLines * lineHeight;
+
+            const labelHeight = baseLineHeight + extraHeight;
+
+            return {
+                arc,
+                index,
+                midX,
+                midY,
+                inlineMarkerX,
+                inlineMarkerY,
+                labelHeight,
+            };
+        })
+        .filter(({ arc }) => {
+            const seriesIndex = arc.seriesIndex ?? 0;
+
+            // Do not include arcs that are being animated or are segregated
+            if (animatingIndex.value === seriesIndex) return false;
+            if (segregated.value.includes(seriesIndex)) return false;
+
+            return isSmallArc(arc, seriesIndex);
+        });
+
+    const topLeftCandidates = [];
+    const topRightCandidates = [];
+    const bottomLeftCandidates = [];
+    const bottomRightCandidates = [];
+
+    candidates.forEach(candidate => {
+        const isTop = candidate.inlineMarkerY < centerY;
+        const isLeft = candidate.inlineMarkerX < centerX;
+
+        if (isTop && isLeft) topLeftCandidates.push(candidate);
+        else if (isTop && !isLeft) topRightCandidates.push(candidate);
+        else if (!isTop && isLeft) bottomLeftCandidates.push(candidate);
+        else bottomRightCandidates.push(candidate);
+    });
+
+    const sortByVerticalPositionAscending = (a, b) =>
+        a.inlineMarkerY - b.inlineMarkerY || a.index - b.index;
+
+    const sortByVerticalPositionDescending = (a, b) =>
+        b.inlineMarkerY - a.inlineMarkerY || a.index - b.index;
+
+    topLeftCandidates.sort(sortByVerticalPositionAscending);
+    topRightCandidates.sort(sortByVerticalPositionAscending);
+    bottomLeftCandidates.sort(sortByVerticalPositionDescending);
+    bottomRightCandidates.sort(sortByVerticalPositionDescending);
+
+    // TOP LEFT BAND (always clustered if any)
+    let currentTopLeftY = topPadding;
+    topLeftCandidates.forEach(candidate => {
+        const { index, midX, midY, labelHeight } = candidate;
+
+        const labelY = currentTopLeftY;
+        const bandMarkerX = leftBandMarkerX;
+        const bandMarkerY = labelY;
+
+        const connectorPath = makeConnectorPathForSmallArcs({
+            midX,
+            midY,
+            bandX: bandMarkerX,
+            bandY: bandMarkerY,
+        });
+
+        layouts[index] = {
+            side: "left",
+            labelX: bandMarkerX - markerTextGap,
+            labelY,
+            textAnchor: "end",
+            markerX: bandMarkerX,
+            markerY: bandMarkerY,
+            connectorPath,
+        };
+
+        currentTopLeftY += labelHeight;
+    });
+
+    // TOP RIGHT BAND (always clustered if any)
+    let currentTopRightY = topPadding;
+    topRightCandidates.forEach(candidate => {
+        const { index, midX, midY, labelHeight } = candidate;
+
+        const labelY = currentTopRightY;
+        const bandMarkerX = rightBandMarkerX;
+        const bandMarkerY = labelY;
+
+        const connectorPath = makeConnectorPathForSmallArcs({
+            midX,
+            midY,
+            bandX: bandMarkerX,
+            bandY: bandMarkerY,
+        });
+
+        layouts[index] = {
+            side: "right",
+            labelX: bandMarkerX + markerTextGap,
+            labelY,
+            textAnchor: "start",
+            markerX: bandMarkerX,
+            markerY: bandMarkerY,
+            connectorPath,
+        };
+
+        currentTopRightY += labelHeight;
+    });
+
+    // BOTTOM LEFT BAND
+    if (bottomLeftCandidates.length > 1) {
+        let currentBottomLeftY = bottomPadding;
+        bottomLeftCandidates.forEach(candidate => {
+            const { index, midX, midY, labelHeight } = candidate;
+
+            currentBottomLeftY -= labelHeight;
+            const labelY = currentBottomLeftY;
+            const bandMarkerX = leftBandMarkerX;
+            const bandMarkerY = labelY;
+
+            const connectorPath = makeConnectorPathForSmallArcs({
+                midX,
+                midY,
+                bandX: bandMarkerX,
+                bandY: bandMarkerY,
+            });
+
+            layouts[index] = {
+                side: "left",
+                labelX: bandMarkerX - markerTextGap,
+                labelY,
+                textAnchor: "end",
+                markerX: bandMarkerX,
+                markerY: bandMarkerY,
+                connectorPath,
+            };
+        });
+    }
+
+    // BOTTOM RIGHT BAND
+    if (bottomRightCandidates.length > 1) {
+        let currentBottomRightY = bottomPadding;
+        bottomRightCandidates.forEach(candidate => {
+            const { index, midX, midY, labelHeight } = candidate;
+
+            currentBottomRightY -= labelHeight;
+            const labelY = currentBottomRightY;
+            const bandMarkerX = rightBandMarkerX;
+            const bandMarkerY = labelY;
+
+            const connectorPath = makeConnectorPathForSmallArcs({
+                midX,
+                midY,
+                bandX: bandMarkerX,
+                bandY: bandMarkerY,
+            });
+
+            layouts[index] = {
+                side: "right",
+                labelX: bandMarkerX + markerTextGap,
+                labelY,
+                textAnchor: "start",
+                markerX: bandMarkerX,
+                markerY: bandMarkerY,
+                connectorPath,
+            };
+        });
+    }
+
+    return layouts;
+});
+
+
 function displayArcPercentage(arc, stepBreakdown) {
     const p = arc.value / sumValues(stepBreakdown);
     return isNaN(p) ? 0 : applyDataLabel(
@@ -933,6 +1212,14 @@ function sumValues(source) {
 
 const total = computed(() => {
     return donutSet.value.map(s => s.value).reduce((a, b) => a + b, 0);
+});
+
+const baseProportions = computed(() => {
+    const sum = immutableSet.value.reduce((acc, ds) => acc + ds.value, 0);
+    if (sum <= 0) {
+        return [];
+    }
+    return immutableSet.value.map(ds => ds.value / sum);
 });
 
 const average = computed(() => {
@@ -1039,6 +1326,163 @@ function useTooltip({ datapoint, relativeIndex, seriesIndex, show = false }) {
     }
 }
 
+function getClassicLabelPosition(arc, index) {
+    const layout = smallArcLayoutsClassic.value[index];
+
+    if (layout) {
+        return {
+            textAnchor: layout.textAnchor,
+            x: layout.labelX,
+            y: layout.labelY
+        };
+    }
+
+    const anchorObject = calcMarkerOffsetX(arc, true, 12);
+    return {
+        textAnchor: anchorObject.anchor,
+        x: anchorObject.x,
+        y: calcMarkerOffsetY(arc)
+    };
+}
+
+function buildClassicInlineLabel(arc, index, isSmall) {
+    const { textAnchor, x } = getClassicLabelPosition(arc, index);
+
+    const percentageBase = displayArcPercentage(arc, noGhostDonut.value);
+    const valueSuffix = FINAL_CONFIG.value.style.chart.layout.labels.value.show
+        ? ` (${applyDataLabel(
+            FINAL_CONFIG.value.style.chart.layout.labels.value.formatter,
+            arc.value,
+            dataLabel({
+                p: FINAL_CONFIG.value.style.chart.layout.labels.dataLabels.prefix,
+                v: arc.value,
+                s: FINAL_CONFIG.value.style.chart.layout.labels.dataLabels.suffix,
+                r: FINAL_CONFIG.value.style.chart.layout.labels.value.rounding
+            }),
+            { datapoint: arc }
+        )})`
+        : '';
+
+    const percentageLabel = `${percentageBase}${valueSuffix}`;
+
+    const percentageTspan = `
+        <tspan
+            class="vue-data-ui-datalabel-inline"
+            fill="${FINAL_CONFIG.value.style.chart.layout.labels.percentage.color}"
+            font-size="${isSmall ? labels_inline_fontSize.value : labels_value_fontSize.value}px"
+            style="font-weight:${FINAL_CONFIG.value.style.chart.layout.labels.percentage.bold ? 'bold' : ''}"
+        >${percentageLabel}</tspan>
+    `;
+
+    const nameLines = String(arc.name ?? '').split(/\n/g);
+    let nameTspans = '';
+
+    nameLines.forEach((line, lineIndex) => {
+        if (lineIndex === 0) {
+            nameTspans += `
+                <tspan
+                    class="vue-data-ui-datalabel-name"
+                    fill="${FINAL_CONFIG.value.style.chart.layout.labels.name.color}"
+                    font-size="${isSmall ? labels_inline_fontSize.value : labels_name_fontSize.value}px"
+                    style="font-weight:${FINAL_CONFIG.value.style.chart.layout.labels.name.bold ? 'bold' : ''}"
+                >${line}</tspan>
+            `;
+        } else {
+            nameTspans += `
+                <tspan
+                    class="vue-data-ui-datalabel-name"
+                    x="${x}"
+                    dy="${(isSmall ? labels_inline_fontSize.value : labels_name_fontSize.value) * 1.2}"
+                    fill="${FINAL_CONFIG.value.style.chart.layout.labels.name.color}"
+                    font-size="${isSmall ? labels_inline_fontSize.value : labels_name_fontSize.value}px"
+                    style="font-weight:${FINAL_CONFIG.value.style.chart.layout.labels.name.bold ? 'bold' : ''}"
+                >${line}</tspan>
+            `;
+        }
+    });
+
+    if (textAnchor === 'end') {
+        return `${nameTspans}${percentageTspan}`;
+    }
+    return `${percentageTspan}${nameTspans}`;
+}
+
+
+function buildPolarInlineLabel(arc, index) {
+    const middlePoint = polarAreas.value[index].middlePoint;
+    const textAnchorComputed = getPolarAnchor(middlePoint);
+
+    const offsetPoint = offsetFromCenterPoint({
+        initX: middlePoint.x,
+        initY: middlePoint.y,
+        offset: 42,
+        centerX: svg.value.width / 2,
+        centerY: svg.value.height / 2
+    });
+
+    const x = offsetPoint.x;
+    const y = offsetPoint.y;
+
+    const percentageBase = displayArcPercentage(arc, noGhostDonut.value);
+    const valueSuffix = FINAL_CONFIG.value.style.chart.layout.labels.value.show
+        ? ` (${applyDataLabel(
+            FINAL_CONFIG.value.style.chart.layout.labels.value.formatter,
+            arc.value,
+            dataLabel({
+                p: FINAL_CONFIG.value.style.chart.layout.labels.dataLabels.prefix,
+                v: arc.value,
+                s: FINAL_CONFIG.value.style.chart.layout.labels.dataLabels.suffix,
+                r: FINAL_CONFIG.value.style.chart.layout.labels.value.rounding
+            }),
+            { datapoint: arc }
+        )})`
+        : '';
+
+    const percentageLabel = `${percentageBase}${valueSuffix}`;
+
+    const percentageTspan = `
+        <tspan
+            class="vue-data-ui-datalabel-value"
+            fill="${FINAL_CONFIG.value.style.chart.layout.labels.percentage.color}"
+            font-size="${labels_value_fontSize.value}px"
+            style="font-weight:${FINAL_CONFIG.value.style.chart.layout.labels.percentage.bold ? 'bold' : 'normal'}"
+        >${percentageLabel}</tspan>
+    `;
+
+    const nameLines = String(arc.name ?? '').split(/\n/g);
+    let nameTspans = '';
+
+    nameLines.forEach((line, lineIndex) => {
+        if (lineIndex === 0) {
+            nameTspans += `
+                <tspan
+                    class="vue-data-ui-datalabel-name"
+                    fill="${FINAL_CONFIG.value.style.chart.layout.labels.name.color}"
+                    font-size="${labels_name_fontSize.value}px"
+                    style="font-weight:${FINAL_CONFIG.value.style.chart.layout.labels.name.bold ? 'bold' : 'normal'}"
+                >${line}</tspan>
+            `;
+        } else {
+            nameTspans += `
+                <tspan
+                    class="vue-data-ui-datalabel-name"
+                    x="${x}"
+                    dy="${labels_name_fontSize.value * 1.2}"
+                    fill="${FINAL_CONFIG.value.style.chart.layout.labels.name.color}"
+                    font-size="${labels_name_fontSize.value}px"
+                    style="font-weight:${FINAL_CONFIG.value.style.chart.layout.labels.name.bold ? 'bold' : 'normal'}"
+                >${line}</tspan>
+            `;
+        }
+    });
+
+    if (textAnchorComputed === 'end') {
+        return `${nameTspans}${percentageTspan}`;
+    }
+    return `${percentageTspan}${nameTspans}`;
+}
+
+
 function getBlurFilter(index) {
     if (FINAL_CONFIG.value.useBlurOnHover && ![null, undefined].includes(selectedSerie.value) && selectedSerie.value !== index) {
         return `url(#blur_${uid.value})`;
@@ -1046,6 +1490,35 @@ function getBlurFilter(index) {
         return '';
     }
 }
+
+function getLabelOpacity(arc) {
+    // No label fading if nothing is animating
+    if (!isAnimating.value || animatingIndex.value === null) {
+        return 1;
+    }
+
+    // Only fade the arc that is currently being toggled
+    if (arc.seriesIndex !== animatingIndex.value) {
+        return 1;
+    }
+
+    const percentage = (arc.proportion ?? 0) * 100;
+
+    const hideUnder = FINAL_CONFIG.value.style.chart.layout.labels.dataLabels.hideUnderValue;
+    const smallThreshold = FINAL_CONFIG.value.style.chart.layout.labels.dataLabels.smallArcClusterThreshold;
+
+    // Start fading slightly above the small-arc threshold,
+    // fully hidden under the minimum visible threshold
+    const fadeStart = smallThreshold + 2;
+    const fadeEnd = hideUnder;
+
+    if (percentage >= fadeStart) return 1;
+    if (percentage <= fadeEnd) return 0;
+
+    return (percentage - fadeEnd) / (fadeStart - fadeEnd);
+}
+
+
 
 const table = computed(() => {
     const head = donutSet.value.map(ds => {
@@ -1463,12 +1936,34 @@ defineExpose({
     
                 <template v-if="FINAL_CONFIG.type === 'classic'">
                     <g v-for="(arc, i) in currentDonut.filter(el => !el.ghost)">
-                        <path data-cy="donut-arc" v-if="isArcBigEnough(arc) && mutableConfig.dataLabels.show"
-                            :d="calcNutArrowPath(arc, { x: svg.width / 2, y: svg.height / 2 }, 16, 16, false, false, donutThickness, 12, FINAL_CONFIG.style.chart.layout.curvedMarkers)"
-                            :stroke="arc.color" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none"
-                            :filter="getBlurFilter(i)" />
+                        <path
+                            data-cy="donut-arc"
+                            v-if="isArcBigEnough(arc) && mutableConfig.dataLabels.show"
+                            :d="
+                                smallArcLayoutsClassic[i]?.connectorPath
+                                    || calcNutArrowPath(
+                                        arc,
+                                        { x: svg.width / 2, y: svg.height / 2 },
+                                        16,
+                                        16,
+                                        false,
+                                        false,
+                                        donutThickness,
+                                        12,
+                                        FINAL_CONFIG.style.chart.layout.curvedMarkers
+                                    )
+                            "
+                            :stroke="arc.color"
+                            stroke-width="1"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            fill="none"
+                            :filter="getBlurFilter(i)"
+                        />
                     </g>
                 </template>
+
+
                 <template v-if="FINAL_CONFIG.type === 'polar'">
                     <g v-for="(arc, i) in currentDonut.filter(el => !el.ghost)">
                         <path 
@@ -1700,6 +2195,7 @@ defineExpose({
                     :filter="getBlurFilter(i)"
                     :class="{ 'animated': FINAL_CONFIG.useCssAnimation }"
                     :key="arc.seriesIndex"
+                    :opacity="getLabelOpacity(arc)"
                 >
                     <g v-if="FINAL_CONFIG.style.chart.layout.labels.dataLabels.useLabelSlots">
                         <foreignObject
@@ -1722,9 +2218,15 @@ defineExpose({
     
                     <g v-else>
                         <template v-if="FINAL_CONFIG.type === 'classic'">
-                            <circle data-cy="donut-label-marker" v-if="isArcBigEnough(arc) && mutableConfig.dataLabels.show"
-                                :cx="calcMarkerOffsetX(arc).x" :cy="calcMarkerOffsetY(arc) - 3.5" :fill="arc.color"
-                                :stroke="FINAL_CONFIG.style.chart.backgroundColor" :stroke-width="1" :r="3"
+                            <circle
+                                data-cy="donut-label-marker"
+                                v-if="isArcBigEnough(arc) && mutableConfig.dataLabels.show"
+                                :cx="smallArcLayoutsClassic[i]?.markerX ?? calcMarkerOffsetX(arc).x"
+                                :cy="smallArcLayoutsClassic[i]?.markerY ?? (calcMarkerOffsetY(arc) - 3.5)"
+                                :fill="arc.color"
+                                :stroke="FINAL_CONFIG.style.chart.backgroundColor"
+                                :stroke-width="1"
+                                :r="3"
                                 :filter="!FINAL_CONFIG.useBlurOnHover || [null, undefined].includes(selectedSerie) || selectedSerie === i ? `` : `url(#blur_${uid})`"
                                 @click="selectDatapoint(arc, i)"
                                 @mouseenter="useTooltip({
@@ -1735,12 +2237,102 @@ defineExpose({
                                 })"
                                 @mouseleave="handleDatapointLeave({ datapoint: arc, seriesIndex: arc.seriesIndex })"
                             />
+
+                            <!-- ONE LINE MODE (forced for small arcs) -->
+                            <text
+                                v-if="FINAL_CONFIG.style.chart.layout.labels.dataLabels.oneLine || smallArcLayoutsClassic[i]"
+                                data-cy="donut-label-inline"
+                                v-show="isArcBigEnough(arc) && mutableConfig.dataLabels.show"
+                                class="vue-data-ui-datalabel-inline"
+                                :text-anchor="smallArcLayoutsClassic[i]?.textAnchor || calcMarkerOffsetX(arc, true, 12).anchor"
+                                :x="smallArcLayoutsClassic[i]?.labelX ?? calcMarkerOffsetX(arc, true, 12).x"
+                                :y="smallArcLayoutsClassic[i]?.labelY ?? calcMarkerOffsetY(arc)"
+                                @click="selectDatapoint(arc, i)"
+                                @mouseenter="useTooltip({
+                                    datapoint: arc,
+                                    relativeIndex: i,
+                                    seriesIndex: arc.seriesIndex,
+                                    show: true
+                                })"
+                                @mouseleave="handleDatapointLeave({ datapoint: arc, seriesIndex: arc.seriesIndex })"
+                                v-html="buildClassicInlineLabel(arc, i, !!smallArcLayoutsClassic[i])"
+                            />
+
+
+                            <!-- ORIGINAL TWO-LINE MODE -->
+                            <template v-else>
+                                <text 
+                                    data-cy="donut-label-value" 
+                                    v-show="isArcBigEnough(arc) && mutableConfig.dataLabels.show"
+                                    class="vue-data-ui-datalabel-value"
+                                    :text-anchor="smallArcLayoutsClassic[i]?.textAnchor || calcMarkerOffsetX(arc, true, 12).anchor"
+                                    :x="smallArcLayoutsClassic[i]?.labelX ?? calcMarkerOffsetX(arc, true, 12).x"
+                                    :y="smallArcLayoutsClassic[i]?.labelY ?? calcMarkerOffsetY(arc)"
+                                    :fill="FINAL_CONFIG.style.chart.layout.labels.percentage.color"
+                                    :font-size="labels_value_fontSize + 'px'"
+                                    :style="`font-weight:${FINAL_CONFIG.style.chart.layout.labels.percentage.bold ? 'bold' : ''}`"
+                                    @click="selectDatapoint(arc, i)"
+                                    @mouseenter="useTooltip({
+                                        datapoint: arc,
+                                        relativeIndex: i,
+                                        seriesIndex: arc.seriesIndex,
+                                        show: true
+                                    })"
+                                    @mouseleave="handleDatapointLeave({ datapoint: arc, seriesIndex: arc.seriesIndex })"
+                                >
+                                    {{ displayArcPercentage(arc, noGhostDonut) }} {{
+                                        FINAL_CONFIG.style.chart.layout.labels.value.show ? `(${applyDataLabel(
+                                            FINAL_CONFIG.style.chart.layout.labels.value.formatter,
+                                            arc.value,
+                                            dataLabel({
+                                                p: FINAL_CONFIG.style.chart.layout.labels.dataLabels.prefix,
+                                                v: arc.value,
+                                                s: FINAL_CONFIG.style.chart.layout.labels.dataLabels.suffix,
+                                                r: FINAL_CONFIG.style.chart.layout.labels.value.rounding
+                                            }),
+                                            { datapoint: arc }
+                                        )})` : '' }}
+                                </text>
+
+                                <text 
+                                    data-cy="donut-label-name"
+                                    v-show="isArcBigEnough(arc, true, 12) && mutableConfig.dataLabels.show"
+                                    class="vue-data-ui-datalabel-name"
+                                    :text-anchor="smallArcLayoutsClassic[i]?.textAnchor || calcMarkerOffsetX(arc).anchor"
+                                    :x="smallArcLayoutsClassic[i]?.labelX ?? calcMarkerOffsetX(arc, true, 12).x"
+                                    :y="(smallArcLayoutsClassic[i]?.labelY ?? calcMarkerOffsetY(arc)) + labels_name_fontSize * 1.2"
+                                    :fill="FINAL_CONFIG.style.chart.layout.labels.name.color"
+                                    :font-size="labels_name_fontSize + 'px'"
+                                    :style="`font-weight:${FINAL_CONFIG.style.chart.layout.labels.name.bold ? 'bold' : ''}`"
+                                    @click="selectDatapoint(arc, i)"
+                                    @mouseenter="useTooltip({
+                                        datapoint: arc,
+                                        relativeIndex: i,
+                                        seriesIndex: arc.seriesIndex,
+                                        show: true
+                                    })"
+                                    @mouseleave="handleDatapointLeave({ datapoint: arc, seriesIndex: arc.seriesIndex })"
+                                    v-html="createTSpansFromLineBreaksOnY({
+                                        content: arc.name,
+                                        fontSize: labels_name_fontSize,
+                                        fill: FINAL_CONFIG.style.chart.layout.labels.name.color,
+                                        x: smallArcLayoutsClassic[i]?.labelX ?? calcMarkerOffsetX(arc, true, 12).x,
+                                        y: (smallArcLayoutsClassic[i]?.labelY ?? calcMarkerOffsetY(arc)) + labels_name_fontSize
+                                    })"
+                                />
+
+
+                            </template>
                         </template>
                         <template v-if="FINAL_CONFIG.type === 'polar'">
-                            <circle data-cy="polar-label-marker" v-if="isArcBigEnough(arc) && mutableConfig.dataLabels.show"
+                            <circle
+                                data-cy="polar-label-marker"
+                                v-if="isArcBigEnough(arc) && mutableConfig.dataLabels.show"
                                 :cx="offsetFromCenterPoint({ initX: polarAreas[i].middlePoint.x, initY: polarAreas[i].middlePoint.y, offset: 24, centerX: svg.width / 2, centerY: svg.height / 2 }).x"
                                 :cy="offsetFromCenterPoint({ initX: polarAreas[i].middlePoint.x, initY: polarAreas[i].middlePoint.y, offset: 24, centerX: svg.width / 2, centerY: svg.height / 2 }).y"
-                                :fill="arc.color" :stroke="FINAL_CONFIG.style.chart.backgroundColor" :stroke-width="1"
+                                :fill="arc.color"
+                                :stroke="FINAL_CONFIG.style.chart.backgroundColor"
+                                :stroke-width="1"
                                 :r="3"
                                 :filter="!FINAL_CONFIG.useBlurOnHover || [null, undefined].includes(selectedSerie) || selectedSerie === i ? `` : `url(#blur_${uid})`"
                                 @click="selectDatapoint(arc, i)"
@@ -1755,78 +2347,18 @@ defineExpose({
                                     transition: isFirstLoad || !FINAL_CONFIG.serieToggleAnimation.show ? 'none' : `all ${FINAL_CONFIG.serieToggleAnimation.durationMs}ms ease-in-out`
                                 }"
                             />
-                        </template>
-                        <template v-if="FINAL_CONFIG.type === 'classic'">
+
+                            <!-- ONE LINE MODE -->
                             <text 
-                                data-cy="donut-label-value" 
+                                v-if="FINAL_CONFIG.style.chart.layout.labels.dataLabels.oneLine"
+                                data-cy="polar-label-inline"
+                                class="vue-data-ui-datalabel-inline"
                                 v-show="isArcBigEnough(arc) && mutableConfig.dataLabels.show"
-                                class="vue-data-ui-datalabel-value"
-                                :text-anchor="calcMarkerOffsetX(arc, true, 12).anchor"
-                                :x="calcMarkerOffsetX(arc, true, 12).x" :y="calcMarkerOffsetY(arc)"
-                                :fill="FINAL_CONFIG.style.chart.layout.labels.percentage.color"
-                                :font-size="labels_value_fontSize + 'px'"
-                                :style="`font-weight:${FINAL_CONFIG.style.chart.layout.labels.percentage.bold ? 'bold' : ''}`"
-                                @click="selectDatapoint(arc, i)"
-                                @mouseenter="useTooltip({
-                                    datapoint: arc,
-                                    relativeIndex: i,
-                                    seriesIndex: arc.seriesIndex,
-                                    show: true
-                                })"
-                                @mouseleave="handleDatapointLeave({ datapoint: arc, seriesIndex: arc.seriesIndex })"
-                            >
-                                {{ displayArcPercentage(arc, noGhostDonut) }} {{
-                                    FINAL_CONFIG.style.chart.layout.labels.value.show ? `(${applyDataLabel(
-                                        FINAL_CONFIG.style.chart.layout.labels.value.formatter,
-                                        arc.value,
-                                        dataLabel({
-                                            p: FINAL_CONFIG.style.chart.layout.labels.dataLabels.prefix,
-                                            v: arc.value, s: FINAL_CONFIG.style.chart.layout.labels.dataLabels.suffix,
-                                            r: FINAL_CONFIG.style.chart.layout.labels.value.rounding
-                                        }),
-                                        { datapoint: arc }
-                                    )})` : '' }}
-                            </text>
-                            <text 
-                                data-cy="donut-label-name"
-                                v-show="isArcBigEnough(arc, true, 12) && mutableConfig.dataLabels.show"
-                                class="vue-data-ui-datalabel-name"
-                                :text-anchor="calcMarkerOffsetX(arc).anchor" :x="calcMarkerOffsetX(arc, true, 12).x"
-                                :y="calcMarkerOffsetY(arc) + labels_name_fontSize * 1.2"
-                                :fill="FINAL_CONFIG.style.chart.layout.labels.name.color"
-                                :font-size="labels_name_fontSize + 'px'"
-                                :style="`font-weight:${FINAL_CONFIG.style.chart.layout.labels.name.bold ? 'bold' : ''}`"
-                                @click="selectDatapoint(arc, i)"
-                                v-html="createTSpansFromLineBreaksOnY({
-                                    content: arc.name,
-                                    fontSize: labels_name_fontSize,
-                                    fill:FINAL_CONFIG.style.chart.layout.labels.name.color,
-                                    x: calcMarkerOffsetX(arc, true, 12).x,
-                                    y: calcMarkerOffsetY(arc) + labels_name_fontSize
-                                })"
-                            />
-                                @mouseenter="useTooltip({
-                                    datapoint: arc,
-                                    relativeIndex: i,
-                                    seriesIndex: arc.seriesIndex,
-                                    show: true
-                                })"
-                                @mouseleave="handleDatapointLeave({ datapoint: arc, seriesIndex: arc.seriesIndex })"
-                            />
-                        </template>
-                        <template v-if="FINAL_CONFIG.type === 'polar'">
-                            <text 
-                                data-cy="polar-label-value"
-                                class="vue-data-ui-datalabel-value"
-                                v-if="isArcBigEnough(arc) && mutableConfig.dataLabels.show"
                                 :text-anchor="getPolarAnchor(polarAreas[i].middlePoint)"
                                 :x="offsetFromCenterPoint({ initX: polarAreas[i].middlePoint.x, initY: polarAreas[i].middlePoint.y, offset: 42, centerX: svg.width / 2, centerY: svg.height / 2 }).x"
                                 :y="offsetFromCenterPoint({ initX: polarAreas[i].middlePoint.x, initY: polarAreas[i].middlePoint.y, offset: 42, centerX: svg.width / 2, centerY: svg.height / 2 }).y"
-                                :fill="FINAL_CONFIG.style.chart.layout.labels.percentage.color"
-                                :font-size="labels_value_fontSize"
                                 :style="{
-                                    transition: isFirstLoad || !FINAL_CONFIG.serieToggleAnimation.show ? 'none' : `all ${FINAL_CONFIG.serieToggleAnimation.durationMs}ms ease-in-out`,
-                                    fontWeight: FINAL_CONFIG.style.chart.layout.labels.percentage.bold ? 'bold': 'normal'
+                                    transition: isFirstLoad || !FINAL_CONFIG.serieToggleAnimation.show ? 'none' : `all ${FINAL_CONFIG.serieToggleAnimation.durationMs}ms ease-in-out`
                                 }"
                                 @click="selectDatapoint(arc, i)"
                                 @mouseenter="useTooltip({
@@ -1836,49 +2368,76 @@ defineExpose({
                                     show: true
                                 })"
                                 @mouseleave="handleDatapointLeave({ datapoint: arc, seriesIndex: arc.seriesIndex })"
-                            >
-                                {{ displayArcPercentage(arc, noGhostDonut) }} {{
-                                    FINAL_CONFIG.style.chart.layout.labels.value.show ? `(${applyDataLabel(
-                                        FINAL_CONFIG.style.chart.layout.labels.value.formatter,
-                                        arc.value,
-                                        dataLabel({
-                                            p: FINAL_CONFIG.style.chart.layout.labels.dataLabels.prefix,
-                                            v: arc.value, s: FINAL_CONFIG.style.chart.layout.labels.dataLabels.suffix,
-                                            r: FINAL_CONFIG.style.chart.layout.labels.value.rounding
-                                        }),
-                                        { datapoint: arc }
-                                    )})` : '' }}
-                            </text>
-                            <text 
-                                data-cy="polar-label-name"
-                                class="vue-data-ui-datalabel-name"
-                                v-if="isArcBigEnough(arc, true, 12) && mutableConfig.dataLabels.show"
-                                :text-anchor="getPolarAnchor(polarAreas[i].middlePoint)"
-                                :x="offsetFromCenterPoint({ initX: polarAreas[i].middlePoint.x, initY: polarAreas[i].middlePoint.y, offset: 42, centerX: svg.width / 2, centerY: svg.height / 2 }).x"
-                                :y="offsetFromCenterPoint({ initX: polarAreas[i].middlePoint.x, initY: polarAreas[i].middlePoint.y, offset: 42, centerX: svg.width / 2, centerY: svg.height / 2 }).y + labels_name_fontSize * 1.2"
-                                :fill="FINAL_CONFIG.style.chart.layout.labels.name.color"
-                                :font-size="labels_name_fontSize"
-                                :style="{
-                                    transition: isFirstLoad || !FINAL_CONFIG.serieToggleAnimation.show ? 'none' : `all ${FINAL_CONFIG.serieToggleAnimation.durationMs}ms ease-in-out`,
-                                    fontWeight: FINAL_CONFIG.style.chart.layout.labels.name.bold ? 'bold': 'normal'
-                                }"
-                                @click="selectDatapoint(arc, i)"
-                                v-html="createTSpansFromLineBreaksOnY({
-                                    content: arc.name,
-                                    fontSize: labels_value_fontSize,
-                                    fill:FINAL_CONFIG.style.chart.layout.labels.name.color,
-                                    x: offsetFromCenterPoint({ initX: polarAreas[i].middlePoint.x, initY: polarAreas[i].middlePoint.y, offset: 42, centerX: svg.width / 2, centerY: svg.height / 2 }).x,
-                                    y: offsetFromCenterPoint({ initX: polarAreas[i].middlePoint.x, initY: polarAreas[i].middlePoint.y, offset: 42, centerX: svg.width / 2, centerY: svg.height / 2 }).y + labels_name_fontSize * 1.2
-                                })"    
+                                v-html="buildPolarInlineLabel(arc, i)"
                             />
-                                @mouseenter="useTooltip({
-                                    datapoint: arc,
-                                    relativeIndex: i,
-                                    seriesIndex: arc.seriesIndex,
-                                    show: true
-                                })"
-                                @mouseleave="handleDatapointLeave({ datapoint: arc, seriesIndex: arc.seriesIndex })"
-                            />
+
+                            <!-- ORIGINAL TWO-LINE MODE -->
+                            <template v-else>
+                                <text 
+                                    data-cy="polar-label-value"
+                                    class="vue-data-ui-datalabel-value"
+                                    v-if="isArcBigEnough(arc) && mutableConfig.dataLabels.show"
+                                    :text-anchor="getPolarAnchor(polarAreas[i].middlePoint)"
+                                    :x="offsetFromCenterPoint({ initX: polarAreas[i].middlePoint.x, initY: polarAreas[i].middlePoint.y, offset: 42, centerX: svg.width / 2, centerY: svg.height / 2 }).x"
+                                    :y="offsetFromCenterPoint({ initX: polarAreas[i].middlePoint.x, initY: polarAreas[i].middlePoint.y, offset: 42, centerX: svg.width / 2, centerY: svg.height / 2 }).y"
+                                    :fill="FINAL_CONFIG.style.chart.layout.labels.percentage.color"
+                                    :font-size="labels_value_fontSize"
+                                    :style="{
+                                        transition: isFirstLoad || !FINAL_CONFIG.serieToggleAnimation.show ? 'none' : `all ${FINAL_CONFIG.serieToggleAnimation.durationMs}ms ease-in-out`,
+                                        fontWeight: FINAL_CONFIG.style.chart.layout.labels.percentage.bold ? 'bold': 'normal'
+                                    }"
+                                    @click="selectDatapoint(arc, i)"
+                                    @mouseenter="useTooltip({
+                                        datapoint: arc,
+                                        relativeIndex: i,
+                                        seriesIndex: arc.seriesIndex,
+                                        show: true
+                                    })"
+                                    @mouseleave="handleDatapointLeave({ datapoint: arc, seriesIndex: arc.seriesIndex })"
+                                >
+                                    {{ displayArcPercentage(arc, noGhostDonut) }} {{
+                                        FINAL_CONFIG.style.chart.layout.labels.value.show ? `(${applyDataLabel(
+                                            FINAL_CONFIG.style.chart.layout.labels.value.formatter,
+                                            arc.value,
+                                            dataLabel({
+                                                p: FINAL_CONFIG.style.chart.layout.labels.dataLabels.prefix,
+                                                v: arc.value,
+                                                s: FINAL_CONFIG.style.chart.layout.labels.dataLabels.suffix,
+                                                r: FINAL_CONFIG.style.chart.layout.labels.value.rounding
+                                            }),
+                                            { datapoint: arc }
+                                        )})` : '' }}
+                                </text>
+                                <text 
+                                    data-cy="polar-label-name"
+                                    class="vue-data-ui-datalabel-name"
+                                    v-if="isArcBigEnough(arc, true, 12) && mutableConfig.dataLabels.show"
+                                    :text-anchor="getPolarAnchor(polarAreas[i].middlePoint)"
+                                    :x="offsetFromCenterPoint({ initX: polarAreas[i].middlePoint.x, initY: polarAreas[i].middlePoint.y, offset: 42, centerX: svg.width / 2, centerY: svg.height / 2 }).x"
+                                    :y="offsetFromCenterPoint({ initX: polarAreas[i].middlePoint.x, initY: polarAreas[i].middlePoint.y, offset: 42, centerX: svg.width / 2, centerY: svg.height / 2 }).y + labels_name_fontSize * 1.2"
+                                    :fill="FINAL_CONFIG.style.chart.layout.labels.name.color"
+                                    :font-size="labels_name_fontSize"
+                                    :style="{
+                                        transition: isFirstLoad || !FINAL_CONFIG.serieToggleAnimation.show ? 'none' : `all ${FINAL_CONFIG.serieToggleAnimation.durationMs}ms ease-in-out`,
+                                        fontWeight: FINAL_CONFIG.style.chart.layout.labels.name.bold ? 'bold': 'normal'
+                                    }"
+                                    @click="selectDatapoint(arc, i)"
+                                    @mouseenter="useTooltip({
+                                        datapoint: arc,
+                                        relativeIndex: i,
+                                        seriesIndex: arc.seriesIndex,
+                                        show: true
+                                    })"
+                                    @mouseleave="handleDatapointLeave({ datapoint: arc, seriesIndex: arc.seriesIndex })"
+                                    v-html="createTSpansFromLineBreaksOnY({
+                                        content: arc.name,
+                                        fontSize: labels_value_fontSize,
+                                        fill: FINAL_CONFIG.style.chart.layout.labels.name.color,
+                                        x: offsetFromCenterPoint({ initX: polarAreas[i].middlePoint.x, initY: polarAreas[i].middlePoint.y, offset: 42, centerX: svg.width / 2, centerY: svg.height / 2 }).x,
+                                        y: offsetFromCenterPoint({ initX: polarAreas[i].middlePoint.x, initY: polarAreas[i].middlePoint.y, offset: 42, centerX: svg.width / 2, centerY: svg.height / 2 }).y + labels_name_fontSize * 1.2
+                                    })"    
+                                />
+                            </template>
                         </template>
                     </g>
     

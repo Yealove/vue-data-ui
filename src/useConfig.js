@@ -1058,12 +1058,15 @@ export function useConfig() {
                 width: 512,
                 height: 360,
                 layout: {
-                    curvedMarkers: true, // v2 = false
+                    curvedMarkers: false,
                     labels: {
                         dataLabels: {
                             show: true,
                             useLabelSlots: false,
                             hideUnderValue: 3,
+                            smallArcClusterThreshold: 8, // percentage under which dataLabels are clusted on a side
+                            smallArcClusterFontSize: FONT._12,
+                            oneLine: false,
                             prefix: '',
                             suffix: '',
                         },

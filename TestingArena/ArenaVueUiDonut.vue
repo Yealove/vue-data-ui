@@ -44,8 +44,12 @@ onMounted(() => {
     setTimeout(() => {
         dataset.value = [
             {
-                name: 'Series A',
-                values: [3]
+                name: 'Series H',
+                values: [0.05]
+            },
+            {
+                name: 'Series A with some\nlong label that\nis cut',
+                values: [3],
             },
             {
                 name: 'Series B',
@@ -54,6 +58,38 @@ onMounted(() => {
             {
                 name: 'Series C',
                 values: [1]
+            },
+            {
+                name: 'Series D',
+                values: [0.5]
+            },
+            {
+                name: 'Series E',
+                values: [0.25]
+            },
+            {
+                name: 'Series F is longer\nand breaks',
+                values: [0.25]
+            },
+            {
+                name: 'Series G',
+                values: [0.05]
+            },
+            {
+                name: 'Series I',
+                values: [0.25]
+            },
+            {
+                name: 'Series J',
+                values: [0.25]
+            },
+            {
+                name: 'Series K',
+                values: [0.25]
+            },
+            {
+                name: 'Series L',
+                values: [0.25]
             },
         ]
     }, 2000)
@@ -91,7 +127,7 @@ function alterDataset() {
 const model = createModel([
     CHECKBOX("debug", { def: true }),
     CHECKBOX("autoSize", { def: true }),
-    CHECKBOX("startAnimation.show", { def: false }),
+    CHECKBOX("startAnimation.show", { def: true }),
     CHECKBOX("pie", { def: false }),
     CHECKBOX("loading", { def: false }),
     SELECT("type", ["classic", "polar"], { def: "classic" }),
@@ -125,9 +161,11 @@ const model = createModel([
     NUMBER("style.chart.padding.right", { def: 24, min: 0, max: 100 }),
     NUMBER("style.chart.padding.bottom", { def: 0, min: 0, max: 100 }),
     NUMBER("style.chart.padding.left", { def: 24, min: 0, max: 100 }),
-    CHECKBOX("style.chart.layout.curvedMarkers", { def: true }),
+    CHECKBOX("style.chart.layout.curvedMarkers", { def: false }),
     CHECKBOX("style.chart.layout.labels.dataLabels.show", { def: true, label: "show", category: "labels" }),
+    CHECKBOX("style.chart.layout.labels.dataLabels.oneLine", {def: true }),
     NUMBER("style.chart.layout.labels.dataLabels.hideUnderValue", { def: 3, min: 0, max: 100, label: "hideUnderValue", category: "labels" }),
+    NUMBER("style.chart.layout.labels.dataLabels.smallArcClusterThreshold", { def: 8, min: 0, max: 100 }),
     CHECKBOX("style.chart.layout.labels.dataLabels.useLabelSlots", { def: false }),
     TEXT("style.chart.layout.labels.dataLabels.prefix", { def: "", label: "prefix", category: "labels" }),
     TEXT("style.chart.layout.labels.dataLabels.suffix", { def: "", label: "suffix", category: "labels" }),
