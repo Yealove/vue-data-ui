@@ -40,8 +40,12 @@ import {
     themePalettes,
     XMLNS,
     treeShake,
-    findArcMidpoint
+    findArcMidpoint,
 } from '../lib';
+import{
+    buildValuePercentageLabel,
+    fillLabel
+} from "../labelUtils";
 import { throttle } from "../canvas-lib";
 import { useConfig } from "../useConfig";
 import { usePrinter } from "../usePrinter";
@@ -856,21 +860,33 @@ const legendSet = computed(() => {
             }
         })
         .map((el, i) => {
+            const valueDisplay = applyDataLabel(FINAL_CONFIG.value.style.chart.layout.labels.value.formatter, el.value, dataLabel({
+                    p: FINAL_CONFIG.value.style.chart.layout.labels.dataLabels.prefix,
+                    v: el.value,
+                    s: FINAL_CONFIG.value.style.chart.layout.labels.dataLabels.suffix,
+                    r: FINAL_CONFIG.value.style.chart.legend.roundingValue
+                }), { datapoint: el, index: i });
+
+            const percentageDisplay = applyDataLabel(FINAL_CONFIG.value.style.chart.layout.labels.percentage.formatter, legendPercentage(el), dataLabel({
+                    v: legendPercentage(el),
+                    s: '%',
+                    r: FINAL_CONFIG.value.style.chart.legend.roundingPercentage
+                }));
+
+            const display = buildLabel({
+                val: valueDisplay,
+                percentage: !segregated.value.includes(i) ? percentageDisplay : `${dashLabel(el.proportion * 100)}%`,
+                showVal: FINAL_CONFIG.value.style.chart.legend.showValue,
+                showPercentage: FINAL_CONFIG.value.style.chart.legend.showPercentage,
+                config: FINAL_CONFIG.value.style.chart.legend
+            })
+
             return {
                 ...el,
                 opacity: segregated.value.includes(i) ? 0.5 : 1,
                 segregate: () => !isAnimating.value && segregate(i),
                 isSegregated: segregated.value.includes(i),
-                display: `${el.name}${FINAL_CONFIG.value.style.chart.legend.showPercentage || FINAL_CONFIG.value.style.chart.legend.showValue ? ': ' : ''}${!FINAL_CONFIG.value.style.chart.legend.showValue ? '' : applyDataLabel(FINAL_CONFIG.value.style.chart.layout.labels.value.formatter, el.value, dataLabel({
-                    p: FINAL_CONFIG.value.style.chart.layout.labels.dataLabels.prefix,
-                    v: el.value,
-                    s: FINAL_CONFIG.value.style.chart.layout.labels.dataLabels.suffix,
-                    r: FINAL_CONFIG.value.style.chart.legend.roundingValue
-                }), { datapoint: el, index: i })}${!FINAL_CONFIG.value.style.chart.legend.showPercentage ? '' : !segregated.value.includes(i) ? `${FINAL_CONFIG.value.style.chart.legend.showValue ? ' (' : ''}${isNaN(el.value / total.value) ? '-' : applyDataLabel(FINAL_CONFIG.value.style.chart.layout.labels.percentage.formatter, legendPercentage(el), dataLabel({
-                    v: legendPercentage(el),
-                    s: '%',
-                    r: FINAL_CONFIG.value.style.chart.legend.roundingPercentage
-                }))}${FINAL_CONFIG.value.style.chart.legend.showValue ? ')' : ''}` : `${FINAL_CONFIG.value.style.chart.legend.showValue ? '(' : ''}${dashLabel(el.proportion * 100)}%${FINAL_CONFIG.value.style.chart.legend.showValue ? ')' : ''}` }`
+                display: `${el.name}${FINAL_CONFIG.value.style.chart.legend.showPercentage || FINAL_CONFIG.value.style.chart.legend.showValue ? ': ' : ''}${display}`
             }
         });
 });
@@ -1070,8 +1086,10 @@ function useTooltip({ datapoint, relativeIndex, seriesIndex, show = false }) {
         html += `<div data-cy="donut-tooltip-name" style="width:100%;text-align:center;border-bottom:1px solid ${FINAL_CONFIG.value.style.chart.tooltip.borderColor};padding-bottom:6px;margin-bottom:3px;">${datapoint.name}</div>`;
         html += `<div style="display:flex;flex-direction:row;gap:6px;align-items:center;"><svg viewBox="0 0 60 60" height="14" width="14"><circle data-cy="donut-tooltip-marker" cx="30" cy="30" r="30" stroke="none" fill="${datapoint.color}"/>${slots.pattern ? `<circle data-cy="donut-tooltip-marker" cx="30" cy="30" r="30" stroke="none" fill="url(#pattern_${uid.value}_${seriesIndex})"/>` : ''}</svg>`;
 
-        if (FINAL_CONFIG.value.style.chart.tooltip.showValue) {
-            html += `<b data-cy="donut-tooltip-value">${applyDataLabel(
+        html += `<b>${buildLabel({
+            showVal: FINAL_CONFIG.value.style.chart.tooltip.showValue,
+            showPercentage: FINAL_CONFIG.value.style.chart.tooltip.showPercentage,
+            val: `<span data-cy="donut-tooltip-value">${applyDataLabel(
                 FINAL_CONFIG.value.style.chart.layout.labels.value.formatter,
                 datapoint.value,
                 dataLabel({
@@ -1085,11 +1103,8 @@ function useTooltip({ datapoint, relativeIndex, seriesIndex, show = false }) {
                     relativeIndex,
                     seriesIndex,
                 }
-            )}</b>`;
-        }
-
-        if (FINAL_CONFIG.value.style.chart.tooltip.showPercentage) {
-            const percentageLabel = applyDataLabel(
+            )}</span>`,
+            percentage: applyDataLabel(
                 FINAL_CONFIG.value.style.chart.layout.labels.percentage.formatter,
                 datapoint.proportion * 100,
                 dataLabel({
@@ -1102,14 +1117,9 @@ function useTooltip({ datapoint, relativeIndex, seriesIndex, show = false }) {
                     relativeIndex,
                     seriesIndex,
                 }
-            );
-
-            if (!FINAL_CONFIG.value.style.chart.tooltip.showValue) {
-                html += `<b>${percentageLabel}</b></div>`;
-            } else {
-                html += `<span>(${percentageLabel})</span></div>`;
-            }
-        }
+            ),
+            config: FINAL_CONFIG.value.style.chart.tooltip
+        })}</b></div>`;
 
         if (FINAL_CONFIG.value.style.chart.comments.showInTooltip && datapoint.comment) {
             html += `<div class="vue-data-ui-tooltip-comment" style="background:${datapoint.color}20; padding: 6px; margin-bottom: 6px; margin-top:6px; border-left: 1px solid ${datapoint.color}">${datapoint.comment}</div>`
@@ -1139,23 +1149,7 @@ function getClassicLabelPosition(arc, index) {
 
 function buildClassicInlineLabel(arc, index, isSmall) {
     const { textAnchor, x } = getClassicLabelPosition(arc, index);
-
-    const percentageBase = displayArcPercentage(arc, noGhostDonut.value);
-    const valueSuffix = FINAL_CONFIG.value.style.chart.layout.labels.value.show
-        ? ` (${applyDataLabel(
-            FINAL_CONFIG.value.style.chart.layout.labels.value.formatter,
-            arc.value,
-            dataLabel({
-                p: FINAL_CONFIG.value.style.chart.layout.labels.dataLabels.prefix,
-                v: arc.value,
-                s: FINAL_CONFIG.value.style.chart.layout.labels.dataLabels.suffix,
-                r: FINAL_CONFIG.value.style.chart.layout.labels.value.rounding
-            }),
-            { datapoint: arc }
-        )})`
-        : '';
-
-    const percentageLabel = `${percentageBase}${valueSuffix}`;
+    const percentageLabel = arcLabel(arc);
 
     const percentageTspan = `
         <tspan
@@ -1215,22 +1209,7 @@ function buildPolarInlineLabel(arc, index) {
     const x = offsetPoint.x;
     const y = offsetPoint.y;
 
-    const percentageBase = displayArcPercentage(arc, noGhostDonut.value);
-    const valueSuffix = FINAL_CONFIG.value.style.chart.layout.labels.value.show
-        ? ` (${applyDataLabel(
-            FINAL_CONFIG.value.style.chart.layout.labels.value.formatter,
-            arc.value,
-            dataLabel({
-                p: FINAL_CONFIG.value.style.chart.layout.labels.dataLabels.prefix,
-                v: arc.value,
-                s: FINAL_CONFIG.value.style.chart.layout.labels.dataLabels.suffix,
-                r: FINAL_CONFIG.value.style.chart.layout.labels.value.rounding
-            }),
-            { datapoint: arc }
-        )})`
-        : '';
-
-    const percentageLabel = `${percentageBase}${valueSuffix}`;
+    const percentageLabel = arcLabel(arc);
 
     const percentageTspan = `
         <tspan
@@ -1397,7 +1376,46 @@ const isSafari = computed(() => {
 })
 
 function dashLabel(num) {
-    return num.toFixed(FINAL_CONFIG.value.style.chart.legend.roundingPercentage).split('').map(_ => '-').join('');
+    return fillLabel({
+        num,
+        rounding:FINAL_CONFIG.value.style.chart.legend.roundingPercentage
+    });
+}
+
+function buildLabel({
+    val,
+    percentage,
+    showVal,
+    showPercentage,
+    config,
+}) {
+    return buildValuePercentageLabel({
+        config,
+        val,
+        percentage,
+        showVal,
+        showPercentage
+    })
+} 
+
+function arcLabel(arc) {
+    return buildLabel({
+        val: applyDataLabel(
+            FINAL_CONFIG.value.style.chart.layout.labels.value.formatter,
+            arc.value,
+            dataLabel({
+                p: FINAL_CONFIG.value.style.chart.layout.labels.dataLabels.prefix,
+                v: arc.value,
+                s: FINAL_CONFIG.value.style.chart.layout.labels.dataLabels.suffix,
+                r: FINAL_CONFIG.value.style.chart.layout.labels.value.rounding
+            }),
+            { datapoint: arc }
+        ),
+        percentage: displayArcPercentage(arc, noGhostDonut.value),
+        showVal: FINAL_CONFIG.value.style.chart.layout.labels.value.show,
+        showPercentage: true,
+        config: FINAL_CONFIG.value.style.chart.layout.labels.dataLabels
+    });
 }
 
 function selectDatapoint(datapoint, index) {
@@ -2072,18 +2090,7 @@ defineExpose({
                                     })"
                                     @mouseleave="handleDatapointLeave({ datapoint: arc, seriesIndex: arc.seriesIndex })"
                                 >
-                                    {{ displayArcPercentage(arc, noGhostDonut) }} {{
-                                        FINAL_CONFIG.style.chart.layout.labels.value.show ? `(${applyDataLabel(
-                                            FINAL_CONFIG.style.chart.layout.labels.value.formatter,
-                                            arc.value,
-                                            dataLabel({
-                                                p: FINAL_CONFIG.style.chart.layout.labels.dataLabels.prefix,
-                                                v: arc.value,
-                                                s: FINAL_CONFIG.style.chart.layout.labels.dataLabels.suffix,
-                                                r: FINAL_CONFIG.style.chart.layout.labels.value.rounding
-                                            }),
-                                            { datapoint: arc }
-                                        )})` : '' }}
+                                    {{ arcLabel(arc) }}
                                 </text>
 
                                 <text 
@@ -2187,18 +2194,7 @@ defineExpose({
                                     })"
                                     @mouseleave="handleDatapointLeave({ datapoint: arc, seriesIndex: arc.seriesIndex })"
                                 >
-                                    {{ displayArcPercentage(arc, noGhostDonut) }} {{
-                                        FINAL_CONFIG.style.chart.layout.labels.value.show ? `(${applyDataLabel(
-                                            FINAL_CONFIG.style.chart.layout.labels.value.formatter,
-                                            arc.value,
-                                            dataLabel({
-                                                p: FINAL_CONFIG.style.chart.layout.labels.dataLabels.prefix,
-                                                v: arc.value,
-                                                s: FINAL_CONFIG.style.chart.layout.labels.dataLabels.suffix,
-                                                r: FINAL_CONFIG.style.chart.layout.labels.value.rounding
-                                            }),
-                                            { datapoint: arc }
-                                        )})` : '' }}
+                                    {{ arcLabel(arc) }}
                                 </text>
                                 <text 
                                     data-cy="polar-label-name"
