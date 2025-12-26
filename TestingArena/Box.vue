@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 import LocalVueDataUi from "../src/components/vue-data-ui.vue";
 import BaseIcon from "../src/atoms/BaseIcon.vue";
 import { adaptColorToBackground } from "../src/lib";
@@ -133,6 +133,74 @@ const highlightedConfig = computed(() => {
 const details = ref(null);
 const summaryOpen = ref(false);
 
+const knobsElement = ref(null);
+
+const knobsMinimumWidthPx = 240;
+let knobsStartClientX = 0;
+let knobsStartWidthPx = 360;
+let knobsResizing = false;
+
+function onKnobsPointerDown(event) {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+
+    // If the handle has children or you click slightly inside it, closest is safer than classList
+    const handle = target.closest(".knobs-resize-handle");
+    if (!handle) return;
+
+    event.preventDefault();
+
+    // Ensure touch listeners are attached before the first move
+    knobsResizing = true;
+
+    const clientX = "touches" in event ? event.touches[0].clientX : event.clientX;
+    knobsStartClientX = clientX;
+
+    const rect = knobsElement.value?.getBoundingClientRect();
+    knobsStartWidthPx = rect ? rect.width : 360;
+
+    document.addEventListener("mousemove", onKnobsPointerMove, { passive: false });
+    document.addEventListener("mouseup", onKnobsPointerUp, { passive: true });
+    document.addEventListener("touchmove", onKnobsPointerMove, { passive: false });
+    document.addEventListener("touchend", onKnobsPointerUp, { passive: true });
+}
+
+function onKnobsPointerMove(event) {
+    if (!knobsResizing) return;
+
+    event.preventDefault();
+
+    const clientX = "touches" in event ? event.touches[0].clientX : event.clientX;
+    const deltaX = knobsStartClientX - clientX;
+    const nextWidthPx = knobsStartWidthPx + deltaX;
+
+    const maxWidthPx = window.innerWidth - 316;
+    const clampedWidthPx = Math.min(Math.max(nextWidthPx, knobsMinimumWidthPx), maxWidthPx);
+
+    if (knobsElement.value) {
+        knobsElement.value.style.width = `${clampedWidthPx}px`;
+        knobsElement.value.style.maxWidth = "none";
+    }
+}
+
+function onKnobsPointerUp() {
+    if (!knobsResizing) return;
+
+    knobsResizing = false;
+
+    document.removeEventListener("mousemove", onKnobsPointerMove);
+    document.removeEventListener("mouseup", onKnobsPointerUp);
+    document.removeEventListener("touchmove", onKnobsPointerMove);
+    document.removeEventListener("touchend", onKnobsPointerUp);
+}
+
+onBeforeUnmount(() => {
+    document.removeEventListener("mousemove", onKnobsPointerMove);
+    document.removeEventListener("mouseup", onKnobsPointerUp);
+    document.removeEventListener("touchmove", onKnobsPointerMove);
+    document.removeEventListener("touchend", onKnobsPointerUp);
+});
+
 
 </script>
 
@@ -146,9 +214,18 @@ const summaryOpen = ref(false);
             </code>
         </button>
     
-        <div class="knobs">
+        <div class="knobs" ref="knobsElement" @mousedown="onKnobsPointerDown" @touchstart="onKnobsPointerDown">
+            <div class="knobs-resize-handle">
+                <BaseIcon name="arrowLeft" style="pointer-events: none;" stroke="#42d392"/>
+                <BaseIcon name="arrowRight" style="pointer-events: none;" stroke="#42d392"/>
+            </div>
             <details ref="details">
-                <summary @click="summaryOpen = !summaryOpen">Config knobs</summary>
+                <summary @click="summaryOpen = !summaryOpen" class="knobs-summary">
+                    <BaseIcon :name="summaryOpen ? 'chipBinary' : 'chipAi'" stroke="#CCCCCC" :size="24" style="margin-bottom:-5.5px"/>
+                    <span style="margin-left:5px; font-weight:bold;">
+                        Config knobs
+                    </span>
+                </summary>
                 <slot name="knobs" v-bind="{ summaryOpen }"/>
             </details>
         </div>
@@ -294,17 +371,45 @@ h1, p {
     overflow: auto;
     background: #232323;
 }
+
 .knobs {
     margin: 0 auto;
-    width: 100%;
-    max-width: 1600px;
     padding: 0 24px;
-    margin-top: 24px;
+    margin-top: 0px;
     position: fixed;
     top: 0;
     right: 0;
-    width: 800px;
     z-index: 10000000;
+    width: 600px;
+    max-width: calc(100vw - 300px);
+    resize: none;
+    overflow-x: auto;
+    position: fixed;
+    background: #2A2A2A;
+    box-shadow: 0 6px 12px #000;
+}
+
+.knobs-resize-handle {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 24px; 
+    height: 100%;
+    cursor: ew-resize;
+    user-select: none;
+    touch-action: none;
+    z-index: 10;
+    display: flex;
+    flex-direction: row;
+    padding: 0 2px;
+    padding-top: 12px;
+    background: linear-gradient(to right, #ffffff35, #ffffff00);
+    border-right: 1px solid #ffffff30;
+}
+
+.knobs-resize-handle:hover {
+    background: linear-gradient(to right, #ffffff55, #ffffff10);
+    border-right: 1px solid #ffffff60;
 }
 
 .btn {
@@ -326,6 +431,18 @@ h1, p {
 
 .btn-reset {
     margin: 0 0 2rem 0;
+}
+
+.knobs-summary {
+    background: linear-gradient(90deg, #42d392, #5f8aee);
+    background-size: 100% 100%;
+    width: fit-content;
+    background-repeat: no-repeat;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: transparent;
+    font-weight: 900 !important;
 }
 
 @media screen and (max-width: 1000px) {
