@@ -1,0 +1,40 @@
+{
+  "items": [
+    {
+      "title": "Add scoped slots",
+      "component": "VueUiHorizontalBar",
+      "description": "Find a way to add foreignObjects in scoped slots for nameLabels and parentLabels, allowing the display of richer content. Problem is using foreignObjects fails the auto size feature related to the parent g element width.",
+      "priority": 0,
+      "author": "graphieros",
+      "done": false,
+      "exchanges": [],
+      "id": "2b103ff3-de84-4843-9ccd-29b88daf9393",
+      "createdAt": 1767035715509,
+      "updatedAt": 1767035715509
+    },
+    {
+      "title": "Add stats tab in todo app",
+      "component": "TodoList.vue",
+      "description": "Add some stats in a tab of the todo app. A donut with breakdown per open/closed, another per priority",
+      "priority": 0,
+      "author": "graphieros",
+      "done": false,
+      "exchanges": [],
+      "id": "36d9df24-93cd-4da9-a652-1bdf8efc7ed1",
+      "createdAt": 1767036688923,
+      "updatedAt": 1767036688923
+    },
+    {
+      "title": "Add filter by priority",
+      "component": "TodoList.vue",
+      "description": "Add a filter feature by priority and filter by component, description, in the Open tab of the todo list.",
+      "priority": 1,
+      "author": "graphieros",
+      "done": false,
+      "exchanges": [],
+      "id": "43545a6f-c728-4d17-b5c0-a6ad3d539853",
+      "createdAt": 1767037191862,
+      "updatedAt": 1767037191862
+    }
+  ]
+}
