@@ -385,6 +385,7 @@ declare module "vue-data-ui" {
         backdropFilter?: boolean;
         smoothForce?: number;
         smoothSnapThreshold?: number;
+        teleportTo?: string;
     };
 
     export type ZoomMinimap = {
@@ -1494,6 +1495,7 @@ declare module "vue-data-ui" {
         | "digit9"
         | "direction"
         | "document"
+        | "doubleCheck"
         | "download"
         | "excel"
         | "exitFullscreen"
@@ -1557,6 +1559,7 @@ declare module "vue-data-ui" {
         | "person"
         | "pie"
         | "play"
+        | "plug"
         | "plus"
         | "printer"
         | "ratio"
@@ -1581,6 +1584,10 @@ declare module "vue-data-ui" {
         | "smiley"
         | "sort"
         | "spin"
+        | "spinner1"
+        | "spinner2"
+        | "spinner3"
+        | "spinner4"
         | "sql"
         | "sqlQuery"
         | "sqlSearch"
@@ -1611,6 +1618,7 @@ declare module "vue-data-ui" {
         | "triangleInformation"
         | "twig"
         | "unlock"
+        | "unplug"
         | "unstack"
         | "upload"
         | "vueDataUi"
@@ -6543,6 +6551,7 @@ declare module "vue-data-ui" {
         titleBold?: boolean;
         titleFontSize?: number;
         titleTextAlign?: TextAlign;
+        tooltipTeleportTo?: string;
         tooltipBackgroundOpacity?: number;
         tooltipCustomFormat?: any;
         tooltipBorderRadius?: number;
