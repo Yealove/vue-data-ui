@@ -17,6 +17,7 @@
       ],
       "id": "2b103ff3-de84-4843-9ccd-29b88daf9393",
       "createdAt": 1767035715509,
+      "type": "feature",
       "updatedAt": 1767117463133
     },
     {
@@ -29,6 +30,7 @@
       "exchanges": [],
       "id": "36d9df24-93cd-4da9-a652-1bdf8efc7ed1",
       "createdAt": 1767036688923,
+      "type": "dev",
       "updatedAt": 1767076725682
     },
     {
@@ -41,6 +43,7 @@
       "exchanges": [],
       "id": "43545a6f-c728-4d17-b5c0-a6ad3d539853",
       "createdAt": 1767037191862,
+      "type": "dev",
       "updatedAt": 1767098908436
     },
     {
@@ -50,35 +53,38 @@
       "priority": 2,
       "author": "graphieros",
       "done": true,
-      "exchanges": [],
+      "exchanges": [
+        {
+          "author": "graphieros",
+          "comment": "Fixed in 3.9.21",
+          "id": "a2cb81b3-1525-4f58-ac4d-c2d0a9b7061a",
+          "createdAt": 1767172521830
+        }
+      ],
       "id": "817f52c7-0ab8-4068-aeb0-49e10cbb27ac",
       "createdAt": 1767078433963,
-      "updatedAt": 1767086431392
+      "type": "bug",
+      "updatedAt": 1767172522614
     },
     {
       "title": "User options cropped",
       "component": "UserOptions.vue",
-      "description": "When placed inside a parent with hidden overflow, UserOptions gets cropped, making it impossible to select actions.",
-      "priority": 1,
+      "description": "When placed inside a parent with hidden overflow, UserOptions gets cropped, making it impossible to select actions. Solution: use the popover api, and default to current behavior if not supported.",
+      "priority": 2,
       "author": "graphieros",
-      "done": false,
+      "done": true,
       "exchanges": [
         {
           "author": "graphieros",
-          "comment": "Option 1: teleport. Comes with problems related to anchoring in all container setup scenarios.",
-          "id": "dd0fa3ae-91f3-4a8b-a649-c29a694bc6e2",
-          "createdAt": 1767117865818
-        },
-        {
-          "author": "graphieros",
-          "comment": "Option 2: wrap icons on several columns. In this scenario, the tooltip behavior needs a solution.",
-          "id": "996cd6ae-6c60-47dd-8614-9bfcb56d793f",
-          "createdAt": 1767117949418
+          "comment": "Fixed in 3.9.22",
+          "id": "386f7927-5e9c-464e-a4e1-1ab5119d5627",
+          "createdAt": 1767172494542
         }
       ],
       "id": "9b075f5f-4791-4349-9a90-6ec936240ab7",
       "createdAt": 1767117444470,
-      "updatedAt": 1767117949418
+      "type": "bug",
+      "updatedAt": 1767177706324
     }
   ]
 }

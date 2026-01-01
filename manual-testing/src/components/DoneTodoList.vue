@@ -9,12 +9,14 @@ const props = defineProps({
             return []
         }
     },
+    priorityColors: { type: Object },
+    typeColors: { type: Object }
 });
 
 const emit = defineEmits([
     'openConfirmDialog',
     'reopenTodo',
-])
+]);
 
 </script>
 
@@ -26,6 +28,11 @@ const emit = defineEmits([
         </div>
 
         <div v-for="item in items" class="card">
+            <div class="card-priority-marker"
+                :style="{
+                    backgroundColor: priorityColors[item.priority]
+                }"
+            />
             <div class="item-actions">
                 <button @click="emit('openConfirmDialog', item)" class="btn-red">
                     <VueUiIcon name="trash" :size="20" stroke="#ec9393"/>
@@ -34,6 +41,11 @@ const emit = defineEmits([
                     <VueUiIcon name="revert" :size="20" stroke="#CCCCCC"/>
                 </button>
             </div>
+
+            <div class="type-badge" :style="{
+                backgroundColor: typeColors[item.type],
+                color: item.type === 'feature' ? '#1A1A1A' : '#FFFFFF'
+            }">{{ item.type.toUpperCase() }}</div>
 
             <div class="item-title">{{ item.title }}</div>
             <div class="item-priority">

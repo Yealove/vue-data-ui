@@ -136,7 +136,7 @@
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        height: 70vh;
+        height: 80vh;
         width: 100vw;
         max-width: 400px;
         background: #3A3A3A;
@@ -520,4 +520,42 @@
     .reset:disabled {
         cursor:not-allowed;
         opacity: 0.3;
+    }
+    .card-priority-marker {
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        width: 3px;
+    }
+    .type-badge {
+        width: fit-content;
+        padding: 0 0.5rem;
+        border-radius: 1rem;
+        font-size: 0.7rem;
+        font-weight: bold;
+    }
+    .card-title {
+        color: #CCCCCC;
+        font-size: 1rem;
+        font-weight: bold;
+        margin-bottom: 1rem;
+    }
+    .card-flex {
+        padding-top: 18%;
+        margin-top: 2rem;
+    }
+    .search-input-wrapper {
+        position: relative;
+    }
+    .search-input {
+        padding-left: 1.5rem !important;
+    }
+    .search-input::placeholder {
+        color: #CCCCCC;
+    }
+    .search-icon {
+        position: absolute;
+        bottom: 0.25rem;
+        left: 0.25rem;
     }

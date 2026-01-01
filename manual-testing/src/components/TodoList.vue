@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from "vue";
 import useCrud from "../composables/useCrud";
 import { createUid, treeShake } from "../../../src/lib";
-import { VueUiDonut, VueUiIcon } from "vue-data-ui";
+import { VueUiDonut, VueUiHorizontalBar, VueUiIcon } from "vue-data-ui";
 import PendingTodoList from "./PendingTodoList.vue";
 import DoneTodoList from "./DoneTodoList.vue";
 
@@ -39,6 +39,12 @@ const priorityColors = {
     2: '#e84242'
 }
 
+const typeColors = {
+    bug: '#e84242',
+    feature: '#42d392',
+    dev: '#1A1A1A'
+}
+
 const todoTemplate = ref({
     title: '',
     component: '',
@@ -47,17 +53,19 @@ const todoTemplate = ref({
     author: '',
     done: false,
     exchanges: [],
+    type: 'feature' // 'feature', 'bug', 'dev'
 });
 
 const filters = ref({
     priority: null,
     author: null,
     description: null,
-    component: null
+    component: null,
+    type: null
 });
 
 const noFilters = computed(() => {
-    return filters.value.priority == null && filters.value.author == null && filters.value.description === null && filters.value.component == null;
+    return filters.value.priority == null && filters.value.author == null && filters.value.description === null && filters.value.component == null && filters.value.type == null;
 })
 
 function resetFilter(key, all = false) {
@@ -66,7 +74,8 @@ function resetFilter(key, all = false) {
             priority: null,
             author: null,
             description: null,
-            component: null
+            component: null,
+            type: null
         }
     } else {
         filters.value[key] = null;
@@ -74,7 +83,7 @@ function resetFilter(key, all = false) {
 }
 
 const authors = computed(() => {
-    return ['', ...new Set(...[items.value.map(n => n.author)])]
+    return new Set(...[items.value.map(n => n.author)])
 });
 
 const filtered = computed(() => {
@@ -83,11 +92,13 @@ const filtered = computed(() => {
             .filter(el => filters.value.description ? (el.description).toUpperCase().includes(filters.value.description.toUpperCase()) : true)
             .filter(el => filters.value.author ? el.author === filters.value.author : true)
             .filter(el => ![null, '', undefined].includes(filters.value.priority) ? el.priority == filters.value.priority : true)
+            .filter(el => ![null, '', undefined].includes(filters.value.type) ? el.type == filters.value.type : true)
             .filter(el => filters.value.component ? el.component.toUpperCase().includes(filters.value.component.toUpperCase()) : true),
         _done: done.value
             .filter(el => filters.value.description ? (el.description).toUpperCase().includes(filters.value.description.toUpperCase()) : true)
             .filter(el => filters.value.author ? el.author === filters.value.author : true)
             .filter(el => ![null, '', undefined].includes(filters.value.priority) ? el.priority == filters.value.priority : true)
+            .filter(el => ![null, '', undefined].includes(filters.value.type) ? el.type == filters.value.type : true)
             .filter(el => filters.value.component ? el.component.toUpperCase().includes(filters.value.component.toUpperCase()) : true),
     }
 });
@@ -229,6 +240,10 @@ function donutHasDs(d) {
     return d.flatMap(_ => _.values).reduce((a, b) => a + b, 0) > 0
 }
 
+function barHasDs(d) {
+    return d.map(_ => _.value).reduce((a, b) => a + b, 0) > 0
+}
+
 const currentTab = ref(0);
 
 const stats = computed(() => {
@@ -237,7 +252,9 @@ const stats = computed(() => {
     const openAuthor = Object.groupBy(toBeDone.value, item => item.author);
     const donePriority = Object.groupBy(done.value, item => item.priority);
     const doneAuthor = Object.groupBy(done.value, item => item.author);
-    const commonConfig = {
+    const openType = Object.groupBy(toBeDone.value, item => item.type);
+    const doneType = Object.groupBy(done.value, item => item.type);
+    const commonConfigDonut = {
         theme: 'dark',
         userOptions: { show: false },
         style: {
@@ -253,10 +270,6 @@ const stats = computed(() => {
                 legend: {
                     backgroundColor: '#4A4A4A',
                 },
-                title: {
-                    textAlign: 'left',
-                    fontSize: 16
-                },
                 tooltip: {
                     teleportTo: '#mainDialog',
                     backgroundColor: '#3A3A3A'
@@ -265,7 +278,66 @@ const stats = computed(() => {
             }
         }
     }
+
+    const commonConfigBar = {
+        theme: 'dark',
+        userOptions: { show: false },
+        style: {
+            chart: {
+                backgroundColor: '#4A4A4A',
+                height: 180,
+                layout: {
+                    bars: {
+                        gap: 12,
+                        useGradient: false,
+                        dataLabels: {
+                            offsetX: 12,
+                            fontSize: 18,
+                        },
+                        nameLabels: {
+                            offsetX: -12,
+                            fontSize: 18,
+                        }
+                    }
+                },
+                legend: {
+                    show: false,
+                    backgroundColor: '#4A4A4A',
+                    position: 'bottom'
+                },
+                tooltip: {
+                    teleportTo: '#mainDialog',
+                    backgroundColor: '#3A3A3A'
+                },
+            }
+        }
+    }
+
     return {
+        type: {
+            open: {
+                dataset: ['bug', 'feature', 'dev'].map(key => {
+                    const items = openType[key] || [];
+                    return {
+                        name: key,
+                        value: items.length,
+                        color: typeColors[key]
+                    }
+                }),
+                config: commonConfigBar
+            },
+            done: {
+                dataset: ['bug', 'feature', 'dev'].map(key => {
+                    const items = doneType[key] || [];
+                    return {
+                        name: key,
+                        value: items.length,
+                        color: typeColors[key]
+                    }
+                }),
+                config: commonConfigBar
+            }
+        },
         priority: {
             open: {
                 dataset: Object.keys(priority).map(key => {
@@ -276,18 +348,7 @@ const stats = computed(() => {
                         color: priorityColors[key]
                     }
                 }),
-                config: treeShake({
-                    defaultConfig: commonConfig,
-                    userConfig: {
-                        style: {
-                            chart: {
-                                title: {
-                                    text: 'Priority - Open'
-                                }
-                            }
-                        }
-                    }
-                })
+                config: commonConfigDonut
             },
             done: {
                 dataset: Object.keys(priority).map(key => {
@@ -298,18 +359,7 @@ const stats = computed(() => {
                         color: priorityColors[key]
                     }
                 }),
-                config: treeShake({
-                    defaultConfig: commonConfig,
-                    userConfig: {
-                        style: {
-                            chart: {
-                                title: {
-                                    text: 'Priority - Done'
-                                }
-                            }
-                        }
-                    }
-                })
+                config: commonConfigDonut
             }
         },
         author: {
@@ -321,18 +371,7 @@ const stats = computed(() => {
                         values: [items.length],
                     }
                 }),
-                config: treeShake({
-                    defaultConfig: commonConfig,
-                    userConfig: {
-                        style: {
-                            chart: {
-                                title: {
-                                    text: 'Authors - Open'
-                                }
-                            }
-                        }
-                    }
-                })
+                config: commonConfigDonut
             },
             done: {
                 dataset: (Object.keys(doneAuthor)).map(key => {
@@ -342,18 +381,7 @@ const stats = computed(() => {
                         values: [items.length ?? 0],
                     }
                 }),
-                config: treeShake({
-                    defaultConfig: commonConfig,
-                    userConfig: {
-                        style: {
-                            chart: {
-                                title: {
-                                    text: 'Authors - Done'
-                                }
-                            }
-                        }
-                    }
-                })
+                config: commonConfigDonut
             }
         }
     }
@@ -385,25 +413,37 @@ const stats = computed(() => {
         </button>
         <div class="filters">
             <label>
+                Type
+                <select v-model="filters.type">
+                    <option :value="null">All</option>
+                    <option>bug</option>
+                    <option>feature</option>
+                    <option>dev</option>
+                </select>
+            </label>
+            <label>
                 Priority
                 <select v-model="filters.priority">
-                    <option></option>
+                    <option :value="null">All</option>
                     <option v-for="p in Object.keys(priority)" :value="p">{{ priority[p] }}</option>
                 </select>
             </label>
             <label>
                 Author
                 <select v-model="filters.author">
+                    <option :value="null">all</option>
                     <option v-for="author in authors">{{ author }}</option>
                 </select>
             </label>
-            <label>
+            <label class="search-input-wrapper">
                 Component
-                <input v-model="filters.component">
+                <VueUiIcon name="magnify" class="search-icon" :size="15" stroke="#9A9A9A"/>
+                <input v-model="filters.component" class="search-input" placeholder="...">
             </label>
-            <label>
+            <label class="search-input-wrapper">
                 Description
-                <input v-model="filters.description">
+                <VueUiIcon name="magnify" class="search-icon" :size="15" stroke="#9A9A9A"/>
+                <input v-model="filters.description" class="search-input" placeholder="...">
             </label>
             <button class="reset" @click="resetFilter(null, true)" :disabled="noFilters">
                 <VueUiIcon name="revert" stroke="#e76969"/>
@@ -444,6 +484,7 @@ const stats = computed(() => {
                 v-if="currentTab === 0"
                 :items="filtered._todo"
                 :priority="priority"
+                :typeColors="typeColors"
                 @openConfirmDialog="openConfirmDialog"
                 @editTodo="editTodo"
                 @openExchangeDialog="openExchangeDialog"
@@ -455,6 +496,8 @@ const stats = computed(() => {
             <DoneTodoList
                 v-if="currentTab === 1"
                 :items="filtered._done"
+                :typeColors="typeColors"
+                :priorityColors="priorityColors"
                 @openConfirmDialog="openConfirmDialog"
                 @reopenTodo="reopenTodo"
             />
@@ -467,24 +510,47 @@ const stats = computed(() => {
                 </div>
                 <template v-else>
                     <div class="card stat" v-if="donutHasDs(stats.priority.open.dataset)">
+                        <div class="card-title">Priority - Open</div>
                         <VueUiDonut
                             :dataset="stats.priority.open.dataset"
                             :config="stats.priority.open.config"
                         />
                     </div>
+                    <div class="card stat" v-if="barHasDs(stats.type.open.dataset)">
+                        <div class="card-title">Type - Open</div>
+                        <div class="card-flex">
+                            <VueUiHorizontalBar
+                                :dataset="stats.type.open.dataset"
+                                :config="stats.type.open.config"
+                            />
+                        </div>
+                    </div>
                     <div class="card stat" v-if="donutHasDs(stats.priority.done.dataset)">
+                        <div class="card-title">Priority - Closed</div>
                         <VueUiDonut
                             :dataset="stats.priority.done.dataset"
                             :config="stats.priority.done.config"
                         />
                     </div>
+
+                    <div class="card stat" v-if="barHasDs(stats.type.done.dataset)">
+                        <div class="card-title">Type - Closed</div>
+                        <div class="card-flex">
+                            <VueUiHorizontalBar
+                                :dataset="stats.type.done.dataset"
+                                :config="stats.type.done.config"
+                            />
+                        </div>
+                    </div>
                     <div class="card stat" v-if="donutHasDs(stats.author.open.dataset)">
+                        <div class="card-title">Authors - Open</div>
                         <VueUiDonut
                             :dataset="stats.author.open.dataset"
                             :config="stats.author.open.config"
                         />
                     </div>
                     <div class="card stat" v-if="donutHasDs(stats.author.done.dataset)">
+                        <div class="card-title">Authors - Closed</div>
                         <VueUiDonut
                             :dataset="stats.author.done.dataset"
                             :config="stats.author.done.config"
@@ -500,6 +566,24 @@ const stats = computed(() => {
             <div>{{ mode + ' - ' + pendingTodo.title }}</div>
         </header>
         <div class="todo-dialog-content">
+            <label>
+                Type
+                <div class="priority-fields" style="margin-bottom: 1rem">
+                    <div class="radio-field">
+                        <input type="radio" v-model="pendingTodo.type" value="feature" id="feature">
+                        <label for="feature">Feature</label>
+                    </div>
+                    <div class="radio-field">
+                        <input type="radio" v-model="pendingTodo.type" value="bug" id="bug">
+                        <label for="bug">Bug</label>
+                    </div>
+                    <div class="radio-field">
+                        <input type="radio" v-model="pendingTodo.type" value="dev" id="dev">
+                        <label for="dev">Dev environment</label>
+                    </div>
+                </div>
+            </label>
+
             <label class="todo-label-inline">
                 <div class="todo-label">
                     <VueUiIcon name="person" :size="18" :stroke="!pendingTodo.author ? '#e76969' : '#42d392'"/>
