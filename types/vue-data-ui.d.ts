@@ -619,6 +619,7 @@ declare module "vue-data-ui" {
     };
 
     export type VueUiTreemapDatapoint = {
+        [key: string]: any;
         children?: VueUiTreemapDatapoint[];
         color: string;
         id: string;
@@ -1606,6 +1607,8 @@ declare module "vue-data-ui" {
         | "plus"
         | "pointer"
         | "printer"
+        | "puzzle"
+        | "puzzleFill"
         | "ratio"
         | "recycle"
         | "refresh"
