@@ -2362,6 +2362,11 @@ declare module "vue-data-ui" {
                     bold?: boolean;
                     rounding?: number;
                 };
+                selectAllToggle?: {
+                    show?: boolean;
+                    backgroundColor?: string;
+                    color?: string;
+                };
             };
             title?: {
                 textAlign?: TextAlign;
@@ -5852,6 +5857,21 @@ declare module "vue-data-ui" {
                 color?: string;
                 strokeWidth?: number;
                 smooth?: boolean;
+                pulse?: {
+                    show?: boolean;
+                    loop?: boolean;
+                    color?: string;
+                    radius?: number
+                    durationMs?: number;
+                    easeing?: 'ease-in-out' | 'ease' | 'ease-in' | 'ease-out' | 'linear' | 'cubic-bezizer';
+                    cubicBezier: [number, number, number, number];
+                    trail?: {
+                        show?: boolean;
+                        length?: number;
+                        opacity?: number;
+                        strokeWidth?: number;
+                    };
+                };
             };
             bar?: {
                 borderRadius?: number;
