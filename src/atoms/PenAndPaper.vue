@@ -832,7 +832,7 @@ onBeforeUnmount(() => {
                 fontVariantNumeric: 'tabular-nums'
             }">
                 {{ dataLabel({
-                    v: mode === 'text' ? fontSize : strokeWidth,
+                    v: mode === 'text' ? Math.round(fontSize) : Math.round(strokeWidth),
                     s: 'px',
                     r: 1
                 }) }}
@@ -880,7 +880,7 @@ onBeforeUnmount(() => {
             class="vertical-range" 
             :min="3" 
             :max="48" 
-            :step="0.1" 
+            :step="1" 
             v-model="fontSize"
             :style="{ accentColor: color }" 
         />
