@@ -413,33 +413,34 @@ onMounted(() => {
     {
         name: "Serie A",
         series: createDs(35),
-        type: "plot",
+        type: "line",
         dataLabels: false,
-        smooth: true,
+        smooth: false,
         useArea: true,
         useProgression: true,
         // freestyle:
         marks: [10, 20],
         annotated: true,
+        // dashIndices: [34]
     },
-    {
-        name: "Serie B",
-        series: createDs(35),
-        type: "line",
-        dataLabels: false,
-        smooth: true,
-        useArea: true,
-        useProgression: true
-    },
-    {
-        name: "Serie C",
-        series: createDs(35),
-        type: "bar",
-        dataLabels: true,
-        smooth: true,
-        useArea: true,
-        useProgression: true
-    },
+    // {
+    //     name: "Serie B",
+    //     series: createDs(35),
+    //     type: "line",
+    //     dataLabels: false,
+    //     smooth: true,
+    //     useArea: true,
+    //     useProgression: true
+    // },
+    // {
+    //     name: "Serie C",
+    //     series: createDs(35),
+    //     type: "bar",
+    //     dataLabels: true,
+    //     smooth: true,
+    //     useArea: true,
+    //     useProgression: true
+    // },
     // {
     //     name: "Serie B",
     //     series: createDs(35),
@@ -695,6 +696,7 @@ const model = createModel([
     NUMBER("chart.zoom.focusRangeRatio", { def: 0.2, min: 0.1, max: 0.9 }),
 
     CHECKBOX("chart.zoom.minimap.show", { def: true }),
+    NUMBER('chart.zoom.minimap.additionalHeight', { def: 0, min: 0, max: 24}),
     CHECKBOX("chart.zoom.minimap.smooth", { def: false }),
     COLOR("chart.zoom.minimap.selectedColor", { def: "#1f77b4" }),
     RANGE("chart.zoom.minimap.selectedColorOpacity", { def: 0.2, min: 0, max: 1, step: 0.01 }),
