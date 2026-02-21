@@ -4040,6 +4040,7 @@ declare module "vue-data-ui" {
         smooth?: boolean;
         prefix?: string;
         suffix?: string;
+        temperatureColors?: string[]; // for line series only
     };
 
     export type VueUiXyDatasetBarItem = {
@@ -5905,6 +5906,14 @@ declare module "vue-data-ui" {
         responsive?: boolean;
         skeletonConfig?: VueUiBuiltInSkeletonConfig<VueUiSparklineConfig>;
         skeletonDataset?: VueUiBuiltInSkeletonDataset<number[]>;
+        gradientPath?: {
+            show?: boolean;
+            segments?: number;
+            colors?: {
+                high?: string;
+                low?: string;
+            };
+        };
         events?: { // v3
             datapointEnter?: VueUiSparklineEvent; // v3
             datapointLeave?: VueUiSparklineEvent; // v3
