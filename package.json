@@ -1,7 +1,7 @@
 {
   "name": "vue-data-ui",
   "private": false,
-  "version": "3.15.8",
+  "version": "3.15.9",
   "type": "module",
   "description": "A user-empowering data visualization Vue 3 components library for eloquent data storytelling",
   "keywords": [
@@ -68,6 +68,10 @@
       "types": "./dist/types/vue-data-ui.d.ts",
       "import": "./dist/vue-data-ui.js",
       "default": "./dist/vue-data-ui.js"
+    },
+    "./utils": {
+      "types": "./dist/types/utils.d.ts",
+      "import": "./dist/utils.js"
     },
     "./*": {
       "types": "./dist/types/*.d.ts",
