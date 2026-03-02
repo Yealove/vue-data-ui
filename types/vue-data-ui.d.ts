@@ -4059,6 +4059,7 @@ declare module "vue-data-ui" {
         prefix?: string;
         suffix?: string;
         temperatureColors?: string[]; // for line series only
+        dashIndices?: number[]; // for line series only
     };
 
     export type VueUiXyDatasetBarItem = {
@@ -4087,6 +4088,7 @@ declare module "vue-data-ui" {
         useProgression: boolean;
         smooth?: boolean;
         useTag?: boolean;
+        dashIndices?: number[];
     };
 
     export type VueUiXyDatasetPlotItem = {
@@ -10524,6 +10526,19 @@ declare module "vue-data-ui" {
         x: number
         y: number
     }
+
+    //--------------------------------------------------------------------------------------------//
+
+    /**
+     * UTILITY FUNCTION TYPES
+     * 
+     * IMPORTANT: these types are duplicated in utils.d.ts
+     * They are kept in vue-data-ui.d.ts for the legacy import from "vue-data-ui" to work.
+     * If we ever ship a v4 these types can be forcefully removed from vue-data-ui.ts, with
+     * a breaking change.
+     */
+
+    //--------------------------------------------------------------------------------------------//
 
     /** 
      * Configuration options for cumulative functions 
