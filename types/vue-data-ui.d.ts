@@ -4798,6 +4798,7 @@ declare module "vue-data-ui" {
         debug?: boolean; // v3
         loading?: boolean; // v3
         responsive?: boolean;
+        a11y?: A11YConfig;
         events?: {
             datapointEnter?: VueUiRadarEvent; // v3
             datapointLeave?: VueUiRadarEvent; // v3
@@ -7034,6 +7035,7 @@ declare module "vue-data-ui" {
         debug?: boolean; // v3
         loading?: boolean; // v3
         responsive?: boolean;
+        a11y?: A11YConfig;
         events?: { // v3
             datapointEnter?: VueUiStripPlotEvent; // v3
             datapointLeave?: VueUiStripPlotEvent; // v3
@@ -7564,6 +7566,7 @@ declare module "vue-data-ui" {
         skeletonDataset?: VueUiBuiltInSkeletonDataset<VueUiXyCanvasDatasetItem[]>;
         debug?: boolean;
         loading?: boolean;
+        a11y?: A11YConfig;
         downsample?: {
             threshold?: number;
         };
@@ -7975,6 +7978,7 @@ declare module "vue-data-ui" {
         debug?: boolean; // v3
         loading?: boolean; // v3
         responsive?: boolean;
+        a11y?: A11YConfig;
         events?: { // v3
             datapointEnter?: VueUiParallelCoordinatePlotEvent; // v3
             datapointLeave?: VueUiParallelCoordinatePlotEvent; // v3
@@ -8323,6 +8327,11 @@ declare module "vue-data-ui" {
     }>;
 
     export type VueUiGizmoConfig = {
+        a11y?: {
+            translations?: {
+                label?: string;
+            };
+        };
         skeletonDataset?: VueUiBuiltInSkeletonDataset<VueUiGizmoDataset>;
         skeletonConfig?: VueUiBuiltInSkeletonConfig<VueUiGizmoConfig>;
         debug?: boolean; // v3
@@ -9805,6 +9814,7 @@ declare module "vue-data-ui" {
         debug?: boolean; // v3
         loading?: boolean; // v3
         responsive?: boolean;
+        a11y?: A11YConfig;
         events?: {
             datapointEnter?: VueUiChordEvent; // v3
             datapointLeave?: VueUiChordEvent; // v3
@@ -9946,6 +9956,7 @@ declare module "vue-data-ui" {
         theme?: Theme;
         responsive?: boolean;
         userOptions?: ChartUserOptions;
+        a11y?: A11YConfig;
         style?: {
             fontFamily?: string;
             chart?: {
@@ -10181,6 +10192,7 @@ declare module "vue-data-ui" {
         debug?: boolean;
         responsive?: boolean;
         theme?: Theme;
+        a11y?: A11YConfig;
         projection?: 'aitoff' | 'azimuthalEquidistant' | 'bonne' | 'equirectangular' | 'gallPeters' | 'globe' | 'hammer' | 'mercator' | 'mollweide' | 'robinson' | 'sinusoidal' | 'vanDerGrinten' | 'winkelTripel';
         userOptions?: ChartUserOptions;
         map?: {
