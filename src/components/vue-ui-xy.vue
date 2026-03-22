@@ -439,6 +439,8 @@ function seedMutableFromConfig() {
         };
         mutableInitialized.value = true;
     } else {
+        mutableConfig.value.showTooltip = FINAL_CONFIG.value.chart.tooltip.show === true;
+        mutableConfig.value.showTable = FINAL_CONFIG.value.showTable === true;
         mutableConfig.value.isStacked = FINAL_CONFIG.value.chart.grid.labels.yAxis.stacked;
         if (mutableConfig.value.useIndividualScale == null) {
             mutableConfig.value.useIndividualScale = FINAL_CONFIG.value.chart.grid.labels.yAxis.useIndividualScale;
@@ -3396,9 +3398,10 @@ async function copyAlt(){
 const isFocus = ref(false);
 
 function onSvgFocus() {
-    if (activeTooltipIndex.value === null && slicer.value.end) {
+    if (slicer.value.end > slicer.value.start) {
         activeTooltipIndex.value = null;
     }
+    userHovers.value = true;
     isFocus.value = true;
 }
 
@@ -3406,6 +3409,7 @@ function onSvgBlur() {
     activeTooltipIndex.value = null;
     onSvgMouseLeave();
     isFocus.value = false;
+    userHovers.value = false;
 }
 
 function onSvgKeydown(event) {
@@ -5198,7 +5202,6 @@ svg:focus {
 
 svg:focus-visible {
     outline: 2px solid currentColor;
-    outline-offset: 4px;
 }
 
 .sr-only {

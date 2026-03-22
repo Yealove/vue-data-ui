@@ -953,8 +953,8 @@ function onSvgKeydown(event) {
     if (document.activeElement !== svgRef.value) return;
     if (!mutableDataset.value.length) return;
 
-    const isPreviousKey = event.key === 'ArrowLeft';
-    const isNextKey = event.key === 'ArrowRight';
+    const isPreviousKey = ['ArrowLeft', 'ArrowDown'].includes(event.key);
+    const isNextKey = ['ArrowRight', 'ArrowUp'].includes(event.key);
     const isActivationKey = event.key === 'Enter' || event.key === ' ';
     const isEscapeKey = event.key === 'Escape';
 
@@ -1574,7 +1574,6 @@ svg:focus {
 
 svg:focus-visible {
     outline: 2px solid currentColor;
-    outline-offset: 4px;
 }
 
 .sr-only {

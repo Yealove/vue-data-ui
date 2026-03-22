@@ -1218,6 +1218,7 @@ declare module "vue-data-ui" {
         debug?: boolean; // v3
         loading?: boolean; // v3
         responsive?: boolean; // v3
+        a11y?: A11YConfig;
         events?: { // v3
             datapointEnter?: VueUi3dBarEvent; // v3
             datapointLeave?: VueUi3dBarEvent; // v3
@@ -1338,6 +1339,7 @@ declare module "vue-data-ui" {
         debug?: boolean; // v3
         loading?: boolean; // v3
         responsive?: boolean; // v3
+        a11y?: A11YConfig;
         events?: {
             datapointEnter?: VueUiMoodRadarEvent; // v3
             datapointLeave?: VueUiMoodRadarEvent; // v3
@@ -2244,6 +2246,7 @@ declare module "vue-data-ui" {
         debug?: boolean; // v3
         loading?: boolean; // v3
         responsive?: boolean; // v3
+        a11y?: A11YConfig;
         events?: {
             datapointEnter?: VueUiSparkHistogramEvent; // v3
             datapointLeave?: VueUiSparkHistogramEvent; // v3
@@ -2375,6 +2378,7 @@ declare module "vue-data-ui" {
         debug?: boolean; // v3
         loading?: boolean; // v3
         useCursorPointer?: boolean;
+        a11y?: A11YConfig;
         events?: {
             datapointEnter?: VueUiSparkStackbarEvent; // v3
             datapointLeave?: VueUiSparkStackbarEvent; // v3
@@ -2569,6 +2573,7 @@ declare module "vue-data-ui" {
         debug?: boolean; // v3
         loading?: boolean; // v3
         responsive?: boolean;
+        a11y?: A11YConfig;
         events?: { // v3
             datapointEnter?: VueUiRelationCircleEvent; // v3
             datapointLeave?: VueUiRelationCircleEvent; // v3
@@ -5328,6 +5333,7 @@ declare module "vue-data-ui" {
         loading?: boolean;
         theme?: Theme;
         customPalette?: string[];
+        a11y?: A11YConfig;
         style?: {
             fontFamily?: string;
             chart?: {
