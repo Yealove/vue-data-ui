@@ -85,6 +85,7 @@ const sparklineChart = ref(null);
 const chartTitle = ref(null);
 const source = ref(null);
 const activeTooltipIndex = ref(null); // a11y
+const internalSelectedIndex = ref(null); // a11y
 
 const FINAL_CONFIG = ref(prepareConfig());
 
@@ -622,6 +623,28 @@ const mutableDataset = computed(() => {
     })
 });
 
+const currentSelectedIndex = computed(() => {
+    if (
+        props.selectedIndex !== undefined &&
+        props.selectedIndex !== null &&
+        props.selectedIndex >= 0 &&
+        props.selectedIndex < mutableDataset.value.length
+    ) {
+        return props.selectedIndex;
+    }
+
+    if (
+        internalSelectedIndex.value !== undefined &&
+        internalSelectedIndex.value !== null &&
+        internalSelectedIndex.value >= 0 &&
+        internalSelectedIndex.value < mutableDataset.value.length
+    ) {
+        return internalSelectedIndex.value;
+    }
+
+    return null;
+});
+
 const area = computed(() => {
     const start = { x: mutableDataset.value[0].x || 0, y: (svg.value.height || 0) - 6 };
     const end = { x: mutableDataset.value[mutableDataset.value.length -1].x || 0, y: (svg.value.height || 0) - 6 };
@@ -641,6 +664,7 @@ function selectPlot(plot, index) {
         FINAL_CONFIG.value.events.datapointEnter({ datapoint: plot, seriesIndex: index });
     }
 
+    internalSelectedIndex.value = index;
     activeTooltipIndex.value = index;
     selectedPlot.value = plot;
 
@@ -658,6 +682,7 @@ function unselectPlot(plot, index) {
 
     previousSelectedPlot.value = selectedPlot.value;
     selectedPlot.value = undefined;
+    internalSelectedIndex.value = null;
     activeTooltipIndex.value = null;
     emits('hoverIndex', { index: undefined });
 }
@@ -802,15 +827,18 @@ watch(
 watch(
     () => props.selectedIndex,
     (newIndex) => {
-        if (newIndex === undefined || newIndex === null) return;
+        if (newIndex === undefined || newIndex === null) {
+            internalSelectedIndex.value = null;
+            activeTooltipIndex.value = null;
+            selectedPlot.value = undefined;
+            return;
+        }
         if (newIndex < 0 || newIndex >= mutableDataset.value.length) return;
-
         const plot = mutableDataset.value[newIndex];
-
         if (!plot) return;
-
+        internalSelectedIndex.value = newIndex;
         activeTooltipIndex.value = newIndex;
-        selectPlot(plot, newIndex);
+        selectedPlot.value = plot;
     }
 );
 
@@ -818,19 +846,39 @@ watch(
  * a11y
  **************************************************************************************************/
 const isFocus = ref(false);
+
 function onSvgFocus() {
+    const controlledIndex = currentSelectedIndex.value;
+    if (
+        controlledIndex !== null &&
+        controlledIndex >= 0 &&
+        controlledIndex < mutableDataset.value.length
+    ) {
+        const plot = mutableDataset.value[controlledIndex];
+
+        if (plot) {
+            activeTooltipIndex.value = controlledIndex;
+            selectedPlot.value = plot;
+            internalSelectedIndex.value = controlledIndex;
+            isFocus.value = true;
+            return;
+        }
+    }
     activeTooltipIndex.value = null;
-    if (!selectedPlot.value) {
+    if (!selectedPlot.value && mutableDataset.value.length) {
         selectPlot(mutableDataset.value.at(-1), mutableDataset.value.length - 1);
     }
     isFocus.value = true;
 }
 
 function onSvgBlur() {
-    activeTooltipIndex.value = null;
     previousSelectedPlot.value = selectedPlot.value;
-    selectedPlot.value = undefined;
-    emits('hoverIndex', { index: undefined });
+    if (props.selectedIndex === undefined || props.selectedIndex === null) {
+        activeTooltipIndex.value = null;
+        selectedPlot.value = undefined;
+        internalSelectedIndex.value = null;
+        emits('hoverIndex', { index: undefined });
+    }
     isFocus.value = false;
 }
 
@@ -1195,7 +1243,7 @@ const a11yTable = computed(() => {
                     <!-- VERTICAL INDICATORS -->
                     <line
                         data-cy="selection-indicator"
-                        v-if="FINAL_CONFIG.style.verticalIndicator.show && ((selectedPlot && plot.id === selectedPlot.id) || selectedIndex === i)"
+                        v-if="FINAL_CONFIG.style.verticalIndicator.show && ((selectedPlot && plot.id === selectedPlot.id) || currentSelectedIndex === i)"
                         :x1="plot.x"
                         :x2="plot.x"
                         :y1="drawingArea.top - 6"
