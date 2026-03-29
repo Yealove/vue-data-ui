@@ -247,6 +247,14 @@ const hasMinimap = computed(() => !!props.allMinimaps.length);
 const uid = ref(createUid());
 const isRanging = ref(false);
 const useMini = computed(() => hasMinimap.value && props.minimapCompact);
+const activeHandle = ref(null);
+const dragStarted = ref(false);
+const dragStartClientX = ref(0);
+const dragPointerOffsetX = ref(0);
+
+const compactHandleWidth = computed(() => {
+    return Math.min(40, Math.max(20, props.handleWidth));
+});
 
 const wrapperWidth = ref(0);
 
@@ -692,7 +700,7 @@ const allMinimapLines = computed(() => {
             ...line,
             temperatureColors: ds?.temperatureColors ?? null,
             isVisible: ds.isVisible,
-            type: ds.type || 'line',
+            type: ds.type || undefined,
             dashed: ds.dashed ?? false
         };
     });
@@ -885,7 +893,15 @@ const startDragging = async (event) => {
     const target = isTouch ? (touch0 ? touch0.target : null) : event.target;
 
     if (!target || !(target instanceof Element)) return;
-    if (target.classList && target.classList.contains('range-handle')) return;
+
+    if (
+        target.classList?.contains('range-handle') ||
+        target.classList?.contains('vue-ui-zoom-compact-minimap-handle') ||
+        target.closest('.vue-ui-zoom-compact-minimap-handle') ||
+        target.closest('.minimap-handle-overlay')
+    ) {
+        return;
+    }
 
     isDragging.value = true;
 
@@ -1283,6 +1299,149 @@ const handleRightA11y = computed(() => ({
     'aria-valuenow': Number(endValue.value),
 }));
 
+function clientXToMinimapX(clientX) {
+    if (!minimapWrapper.value) return 0;
+
+    const rect = minimapWrapper.value.getBoundingClientRect();
+    if (!rect.width) return 0;
+
+    const cssX = clientX - rect.left;
+    const scaleX = svgMinimap.value.width / rect.width;
+
+    return cssX * scaleX;
+}
+
+function localXToMiniPointIndex(localX) {
+    const offset = props.minimapCompact ? 0 : unitWidthX.value / 2;
+    const raw = (localX - offset) / Math.max(1, unitWidthX.value);
+
+    return Math.max(
+        0,
+        Math.min(Math.max(0, absLen.value - 1), Math.round(raw))
+    );
+}
+
+function updateHandleDragFromLocalX(localX) {
+    const pointIndex = localXToMiniPointIndex(localX);
+
+    if (activeHandle.value === 'start') {
+        const nextStart = Math.min(props.min + pointIndex, Number(endValue.value) - 1);
+        start.value = nextStart;
+        emitFutureStart(nextStart);
+        return;
+    }
+
+    if (activeHandle.value === 'end') {
+        const nextEnd = Math.max(Number(startValue.value) + 1, props.min + pointIndex + 1);
+        const clampedEnd = Math.min(props.max, nextEnd);
+        end.value = clampedEnd;
+        emitFutureEnd(clampedEnd);
+    }
+}
+
+function onHandleMouseMove(event) {
+    if (!activeHandle.value || !minimapWrapper.value) return;
+
+    const deltaX = event.clientX - dragStartClientX.value;
+
+    if (!dragStarted.value) {
+        if (Math.abs(deltaX) < 4) return;
+        dragStarted.value = true;
+        isRanging.value = true;
+        showTooltip.value = true;
+    }
+
+    const minimapX = clientXToMinimapX(event.clientX);
+    const handleLeftX = minimapX - dragPointerOffsetX.value;
+
+    const boundaryX =
+        activeHandle.value === 'start'
+            ? handleLeftX + compactHandleWidth.value
+            : handleLeftX;
+
+    updateHandleDragFromLocalX(boundaryX);
+}
+
+function stopHandleDrag() {
+    if (!activeHandle.value) return;
+
+    window.removeEventListener('mousemove', onHandleMouseMove, true);
+    window.removeEventListener('mouseup', stopHandleDrag, true);
+
+    const didDrag = dragStarted.value;
+
+    activeHandle.value = null;
+    dragStarted.value = false;
+    dragStartClientX.value = 0;
+    dragPointerOffsetX.value = 0;
+
+    if (didDrag) {
+        commitImmediately();
+    }
+}
+
+function beginHandleDrag(side, event) {
+    if (!hasMinimap.value || !props.minimapCompact || !minimapWrapper.value) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const minimapX = clientXToMinimapX(event.clientX);
+
+    const handleLeftX =
+        side === 'start'
+            ? selectionRectCoordinates.value.x - compactHandleWidth.value
+            : selectionRectCoordinates.value.x + selectionRectCoordinates.value.width;
+
+    activeHandle.value = side;
+    dragStarted.value = false;
+    dragStartClientX.value = event.clientX;
+    dragPointerOffsetX.value = minimapX - handleLeftX;
+
+    window.addEventListener('mousemove', onHandleMouseMove, true);
+    window.addEventListener('mouseup', stopHandleDrag, true);
+}
+
+const leftBoundaryMiniIndex = computed(() => startMini.value);
+const rightBoundaryMiniIndex = computed(() => Math.max(startMini.value, endMini.value - 1));
+
+const compactOverlayBoundaryDots = computed(() => {
+    if (!hasMinimap.value || !props.minimapCompact || !props.allMinimaps.length) return [];
+
+    const leftIndex = leftBoundaryMiniIndex.value;
+    const rightIndex = rightBoundaryMiniIndex.value;
+
+    return allMinimapLines.value.flatMap((dp) => {
+        if (!dp?.isVisible) return [];
+        if (!['line', 'plot'].includes(dp.type) || !dp.type) return [];
+
+        const dots = [];
+
+        const leftPoint = dp.points?.find(p => p.i === leftIndex && p.value !== null);
+        const rightPoint = dp.points?.find(p => p.i === rightIndex && p.value !== null);
+
+        if (leftPoint) {
+            dots.push({
+                key: `${dp.key}-left-${leftPoint.i}`,
+                x: leftPoint.x,
+                y: leftPoint.y,
+                color: dp.color
+            });
+        }
+
+        if (rightPoint && rightIndex !== leftIndex) {
+            dots.push({
+                key: `${dp.key}-right-${rightPoint.i}`,
+                x: rightPoint.x,
+                y: rightPoint.y,
+                color: dp.color
+            });
+        }
+
+        return dots;
+    });
+});
+
 defineExpose({
     setStartValue,
     setEndValue
@@ -1306,28 +1465,27 @@ defineExpose({
     >
         <div 
             class="vue-data-ui-slicer-labels" 
-            style="position: relative; z-index: 1; pointer-events: none;"
+            style="position: relative; z-index: 1; pointer-events: none"
         >
             <div 
                 v-if="valueStart !== refreshStartPoint || valueEnd !== endpoint"
-                style="width: 100%; position: relative"
+                style="width: 100%; position: relative; pointer-events: all;"
             >
-                <button 
-                    v-if="!useResetSlot" 
-                    data-cy="slicer-reset" 
-                    tabindex="0" 
-                    role="button"
-                    class="vue-data-ui-refresh-button" 
-                    :style="{
-                        top: hasMinimap ? '36px' : '-16px',
-                        pointerEvents: 'all !important',
-                        cursor: isCursorPointer ? 'pointer' : 'default'
-                    }" 
-                    @click="reset"
-                >
-                    <BaseIcon name="refresh" :stroke="textColor" />
-                </button>
-                <slot v-else name="reset-action" :reset="reset" />
+                <slot name="reset-action" :reset="reset">
+                    <button 
+                        data-cy="slicer-reset" 
+                        tabindex="0" 
+                        role="button"
+                        class="vue-data-ui-refresh-button" 
+                        :style="{
+                            top: hasMinimap ? '36px' : '-16px',
+                            cursor: isCursorPointer ? 'pointer' : 'default'
+                        }" 
+                        @click="reset"
+                    >
+                        <BaseIcon name="refresh" :stroke="textColor" />
+                    </button>
+                </slot>
             </div>
         </div>
 
@@ -1590,111 +1748,6 @@ defineExpose({
                             }" 
                         />
 
-                        <!-- COMPACT LEFT HANDLE -->
-                        <rect
-                            class="vue-ui-zoom-compact-minimap-handle"
-                            v-if="hasMinimap && minimapCompact"
-                            :x="selectionRectCoordinates.x - Math.min(40, Math.max(20, handleWidth))"
-                            :y="0"
-                            :width="Math.min(40, Math.max(20, handleWidth))"
-                            :height="svgMinimap.height"
-                            :fill="handleFill || borderColor"
-                            :stroke="handleBorderColor || textColor"
-                            :stroke-width="handleBorderWidth"
-                            :rx="3"
-                            v-bind="handleLeftA11y"
-                            @keydown="onHandleKeydown('start', $event)"
-                        />
-
-                        <svg
-                            v-if="handleType && handleType !== 'empty'"
-                            :x="selectionRectCoordinates.x - Math.min(40, Math.max(20, handleWidth))"
-                            :y="0"
-                            :width="Math.min(40, Math.max(20, handleWidth))"
-                            :height="svgMinimap.height"
-                            viewBox="0 0 20 20"
-                        >
-                            <path
-                                v-if="handleType === 'arrow'"
-                                d="M 7 7 L 3 10 L 7 13 L 7 7 M 13 7 L 17 10 L 13 13 L 13 7"
-                                :fill="borderColor"
-                                :stroke="handleIconColor || textColor"
-                                :stroke-width="0.618"
-                                stroke-linejoin="round"
-                                stroke-linecap="round"
-                            />
-
-                            <path 
-                                v-else-if="handleType === 'chevron'"
-                                d="M 6 7 L 4 10 L 6 13 M 14 7 L 16 10 L 14 13"
-                                fill="none"
-                                :stroke="handleIconColor || textColor"
-                                :stroke-width="0.618"
-                                stroke-linejoin="round"
-                                stroke-linecap="round"
-                            />
-
-                            <path 
-                                v-else-if="handleType === 'grab'"
-                                d="M 8 5 A 1 1 0 0 0 8 7 A 1 1 0 0 0 8 5 M 8 9 A 1 1 0 0 0 8 11 A 1 1 0 0 0 8 9 M 8 13 A 1 1 0 0 0 8 15 A 1 1 0 0 0 8 13 M 12 5 A 1 1 0 0 0 12 7 A 1 1 0 0 0 12 5 M 12 9 A 1 1 0 0 0 12 11 A 1 1 0 0 0 12 9 M 12 13 A 1 1 0 0 0 12 15 A 1 1 0 0 0 12 13"
-                                :fill="handleIconColor || textColor"
-                                stroke="none"
-                                opacity="0.6"
-                            />
-                        </svg>
-
-                        <!-- COMPACT HANDLE RIGHT -->
-                        <rect
-                            class="vue-ui-zoom-compact-minimap-handle"
-                            v-if="hasMinimap && minimapCompact"
-                            :x="selectionRectCoordinates.x + selectionRectCoordinates.width"
-                            :y="0"
-                            :width="Math.min(40, Math.max(20, handleWidth))"
-                            :height="svgMinimap.height"
-                            :fill="handleFill || borderColor"
-                            :stroke="handleBorderColor || textColor"
-                            :stroke-width="handleBorderWidth"
-                            :rx="3"
-                            v-bind="handleRightA11y"
-                            @keydown="onHandleKeydown('end', $event)"
-                        />
-
-                        <svg
-                            v-if="handleType && handleType !== 'empty'"
-                            :x="selectionRectCoordinates.x + selectionRectCoordinates.width"
-                            :y="0"
-                            :width="Math.min(40, Math.max(20, handleWidth))"
-                            :height="svgMinimap.height"
-                            viewBox="0 0 20 20"
-                        >
-                            <path
-                                v-if="handleType === 'arrow'"
-                                d="M 7 7 L 3 10 L 7 13 L 7 7 M 13 7 L 17 10 L 13 13 L 13 7"
-                                :fill="borderColor"
-                                :stroke="handleIconColor || textColor"
-                                :stroke-width="0.618"
-                                stroke-linejoin="round"
-                                stroke-linecap="round"
-                            />
-
-                            <path 
-                                v-else-if="handleType === 'chevron'"
-                                d="M 6 7 L 4 10 L 6 13 M 14 7 L 16 10 L 14 13"
-                                fill="none"
-                                :stroke="handleIconColor || textColor"
-                                :stroke-width="0.618"
-                                stroke-linejoin="round"
-                                stroke-linecap="round"
-                            />
-
-                            <path 
-                                v-else-if="handleType === 'grab'"
-                                d="M 8 5 A 1 1 0 0 0 8 7 A 1 1 0 0 0 8 5 M 8 9 A 1 1 0 0 0 8 11 A 1 1 0 0 0 8 9 M 8 13 A 1 1 0 0 0 8 15 A 1 1 0 0 0 8 13 M 12 5 A 1 1 0 0 0 12 7 A 1 1 0 0 0 12 5 M 12 9 A 1 1 0 0 0 12 11 A 1 1 0 0 0 12 9 M 12 13 A 1 1 0 0 0 12 15 A 1 1 0 0 0 12 13"
-                                :fill="handleIconColor || textColor"
-                                stroke="none"
-                                opacity="0.6"
-                            />
-                        </svg>
 
                         <!-- SELECTION INDICATOR -->
                         <template v-if="selectedTrap !== null && !isMouseDown">
@@ -1829,6 +1882,155 @@ defineExpose({
                             @mouseenter="trapMouse(trap)" 
                             @mouseleave="selectedTrap = null; emit('trapMouse', null)" 
                         />
+                    </svg>
+                </div>
+                
+                <div
+                    v-if="hasMinimap && minimapCompact"
+                    class="minimap-handle-overlay"
+                >
+                    <svg
+                        :xmlns="XMLNS"
+                        :viewBox="`0 0 ${Math.max(0, svgMinimap.width)} ${Math.max(0, svgMinimap.height)}`"
+                        preserveAspectRatio="none"
+                    >
+                        <rect
+                            class="vue-ui-zoom-compact-minimap-handle"
+                            data-cy="slicer-compact-handle-left"
+                            :x="selectionRectCoordinates.x - Math.min(40, Math.max(20, handleWidth))"
+                            :y="0"
+                            :width="Math.min(40, Math.max(20, handleWidth))"
+                            :height="svgMinimap.height"
+                            :fill="handleFill || borderColor"
+                            :stroke="handleBorderColor || textColor"
+                            :stroke-width="handleBorderWidth"
+                            :rx="3"
+                            v-bind="handleLeftA11y"
+                            @keydown="onHandleKeydown('start', $event)"
+                            @mousedown.stop.prevent="beginHandleDrag('start', $event)"
+                            @click.stop.prevent
+                        />
+
+                        <g
+                            v-if="handleType && handleType !== 'empty'"
+                            class="compact-handle-icon"
+                            :transform="`translate(${selectionRectCoordinates.x - Math.min(40, Math.max(20, handleWidth))}, 0)`"
+                            style="pointer-events: none"
+                        >
+                            <svg
+                                :width="Math.min(40, Math.max(20, handleWidth))"
+                                :height="svgMinimap.height"
+                                viewBox="0 0 20 20"
+                            >
+                                <path
+                                    v-if="handleType === 'arrow'"
+                                    d="M 7 7 L 3 10 L 7 13 L 7 7 M 13 7 L 17 10 L 13 13 L 13 7"
+                                    :fill="borderColor"
+                                    :stroke="handleIconColor || textColor"
+                                    :stroke-width="0.618"
+                                    stroke-linejoin="round"
+                                    stroke-linecap="round"
+                                />
+
+                                <path
+                                    v-else-if="handleType === 'chevron'"
+                                    d="M 6 7 L 4 10 L 6 13 M 14 7 L 16 10 L 14 13"
+                                    fill="none"
+                                    :stroke="handleIconColor || textColor"
+                                    :stroke-width="0.618"
+                                    stroke-linejoin="round"
+                                    stroke-linecap="round"
+                                />
+
+                                <path
+                                    v-else-if="handleType === 'grab'"
+                                    d="M 8 5 A 1 1 0 0 0 8 7 A 1 1 0 0 0 8 5 M 8 9 A 1 1 0 0 0 8 11 A 1 1 0 0 0 8 9 M 8 13 A 1 1 0 0 0 8 15 A 1 1 0 0 0 8 13 M 12 5 A 1 1 0 0 0 12 7 A 1 1 0 0 0 12 5 M 12 9 A 1 1 0 0 0 12 11 A 1 1 0 0 0 12 9 M 12 13 A 1 1 0 0 0 12 15 A 1 1 0 0 0 12 13"
+                                    :fill="handleIconColor || textColor"
+                                    stroke="none"
+                                    opacity="0.6"
+                                />
+                            </svg>
+                        </g>
+
+                        <rect
+                            class="vue-ui-zoom-compact-minimap-handle"
+                            data-cy="slicer-compact-handle-right"
+                            :x="selectionRectCoordinates.x + selectionRectCoordinates.width"
+                            :y="0"
+                            :width="Math.min(40, Math.max(20, handleWidth))"
+                            :height="svgMinimap.height"
+                            :fill="handleFill || borderColor"
+                            :stroke="handleBorderColor || textColor"
+                            :stroke-width="handleBorderWidth"
+                            :rx="3"
+                            v-bind="handleRightA11y"
+                            @keydown="onHandleKeydown('end', $event)"
+                            @mousedown.stop.prevent="beginHandleDrag('end', $event)"
+                            @click.stop.prevent
+                        />
+
+                        <g
+                            v-if="handleType && handleType !== 'empty'"
+                            class="compact-handle-icon"
+                            :transform="`translate(${selectionRectCoordinates.x + selectionRectCoordinates.width}, 0)`"
+                            style="pointer-events: none"
+                        >
+                            <svg
+                                :width="Math.min(40, Math.max(20, handleWidth))"
+                                :height="svgMinimap.height"
+                                viewBox="0 0 20 20"
+                            >
+                                <path
+                                    v-if="handleType === 'arrow'"
+                                    d="M 7 7 L 3 10 L 7 13 L 7 7 M 13 7 L 17 10 L 13 13 L 13 7"
+                                    :fill="borderColor"
+                                    :stroke="handleIconColor || textColor"
+                                    :stroke-width="0.618"
+                                    stroke-linejoin="round"
+                                    stroke-linecap="round"
+                                />
+
+                                <path
+                                    v-else-if="handleType === 'chevron'"
+                                    d="M 6 7 L 4 10 L 6 13 M 14 7 L 16 10 L 14 13"
+                                    fill="none"
+                                    :stroke="handleIconColor || textColor"
+                                    :stroke-width="0.618"
+                                    stroke-linejoin="round"
+                                    stroke-linecap="round"
+                                />
+
+                                <path
+                                    v-else-if="handleType === 'grab'"
+                                    d="M 8 5 A 1 1 0 0 0 8 7 A 1 1 0 0 0 8 5 M 8 9 A 1 1 0 0 0 8 11 A 1 1 0 0 0 8 9 M 8 13 A 1 1 0 0 0 8 15 A 1 1 0 0 0 8 13 M 12 5 A 1 1 0 0 0 12 7 A 1 1 0 0 0 12 5 M 12 9 A 1 1 0 0 0 12 11 A 1 1 0 0 0 12 9 M 12 13 A 1 1 0 0 0 12 15 A 1 1 0 0 0 12 13"
+                                    :fill="handleIconColor || textColor"
+                                    stroke="none"
+                                    opacity="0.6"
+                                />
+                            </svg>
+                        </g>
+
+                        <!-- Show boundary plots on top of handles -->
+                        <g class="compact-overlay-boundary-dots" style="pointer-events: none">
+                            <circle
+                                v-for="dot in compactOverlayBoundaryDots"
+                                :key="dot.key"
+                                :cx="dot.x"
+                                :cy="dot.y"
+                                r="4"
+                                :fill="dot.color"
+                                :stroke="borderColor"
+                                stroke-width="0.5"
+                            />
+                            <circle
+                                v-for="dot in compactOverlayBoundaryDots"
+                                :key="`${dot.key}-inner`"
+                                :cx="dot.x"
+                                :cy="dot.y"
+                                r="2"
+                                :fill="borderColor"
+                            />
+                        </g>
                     </svg>
                 </div>
             </template>
@@ -2219,12 +2421,12 @@ input[type="range"]::-ms-thumb {
 /** Compact (minimap only) */
 
 input[type="range"].range-invisible {
-    position: absolute;
-    z-index: 3;
-    top: 0px;
-    height: 8px;
-    margin: 0;
-    padding: 0;
+    left: calc(-1 * var(--compact-thumb-inset)) !important;
+    right: auto !important;
+    width: calc(100% + var(--compact-thumb-width)) !important;
+    transform: none !important;
+    box-sizing: border-box;
+    pointer-events: none !important;
 }
 
 input[type="range"].range-invisible.range-left {
@@ -2304,7 +2506,6 @@ input[type="range"].range-invisible::-ms-thumb {
 
 .vue-ui-zoom-compact-minimap-handle {
     opacity: 1;
-    pointer-events: none;
     transition: opacity 0.15s ease-in-out;
 }
 
@@ -2358,4 +2559,38 @@ input[type="range"].range-handle {
     top: -14px;
 }
 
+input[type="range"].range-minimap {
+    pointer-events: auto;
+}
+
+.minimap-handle-overlay {
+    position: absolute;
+    top: calc(-50% - 6px);
+    left: 0;
+    width: 100%;
+    height: calc(100% - 47px + v-bind('props.additionalMinimapHeight') * 1px);
+    z-index: 5;
+    pointer-events: none;
+
+    svg {
+        position: absolute;
+        inset: 0;
+        overflow: visible;
+    }
+}
+
+.minimap-handle-overlay .vue-ui-zoom-compact-minimap-handle {
+    pointer-events: auto;
+    cursor: ew-resize;
+}
+
+.minimap-handle-overlay .compact-handle-icon,
+.minimap-handle-overlay .compact-handle-icon * {
+    pointer-events: none;
+}
+
+.minimap svg[viewBox="0 0 20 20"],
+.minimap svg[viewBox="0 0 20 20"] * {
+    pointer-events: none;
+}
 </style>
