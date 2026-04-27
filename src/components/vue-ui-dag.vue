@@ -2024,6 +2024,7 @@ defineExpose({
                             :y="node.y - node.height / 2"
                             :width="node.width"
                             :height="node.height"
+                            style="overflow: visible"
                         >
                             <slot
                                 name="node"
@@ -2194,7 +2195,7 @@ defineExpose({
                         data: layoutData,
                         orientation: direction,
                         isPrintingImg:
-                            isPrinting | isImaging | isCallbackImaging,
+                            isPrinting || isImaging || isCallbackImaging,
                         isPrintingSvg: isCallbackSvg,
                     }"
                 />
@@ -2358,7 +2359,7 @@ defineExpose({
     border-radius: 4px;
     font-size: 12px;
     z-index: 999999;
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px) !important;
     -webkit-backdrop-filter: blur(10px);
 }
 
@@ -2416,7 +2417,7 @@ defineExpose({
     border-radius: 4px;
     font-size: 12px;
     z-index: 1000000;
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px) !important;
     -webkit-backdrop-filter: blur(10px);
 }
 
