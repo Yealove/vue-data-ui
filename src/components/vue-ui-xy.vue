@@ -583,7 +583,13 @@ const { loading, FINAL_DATASET, manualLoading } = useLoading({
     prepareConfig,
     callback: () => {
         Promise.resolve().then(async () => {
-            await setupSlicer();
+            if (
+                !FINAL_CONFIG.value.chart.zoom.keepState ||
+                !slicerReady.value ||
+                (slicer.value.start === 0 && slicer.value.end === 0)
+            ) {
+                await setupSlicer();
+            }
             mutableConfig.value.showTable = FINAL_CONFIG.value.showTable;
         });
     },
@@ -1378,9 +1384,18 @@ function setupSlicer() {
     isSettingUp.value = true;
     try {
         const { startIndex, endIndex } = FINAL_CONFIG.value.chart.zoom;
-        const max = Math.max(
-            ...FINAL_DATASET.value.map((dp) => lttb(dp.series).length),
-        );
+        const max = FINAL_CONFIG.value.chart.zoom.keepState
+            ? Math.max(
+                  0,
+                  ...FINAL_DATASET.value.map((dp) => lttb(dp.series).length),
+              )
+            : Math.max(
+                  ...FINAL_DATASET.value.map((dp) => lttb(dp.series).length),
+              );
+
+        if (FINAL_CONFIG.value.chart.zoom.keepState && max <= 0) {
+            return;
+        }
 
         // Absolute bounds are always the full-range indices
         absoluteSlicerStartIndex.value = 0;
@@ -2822,8 +2837,17 @@ const lineSet = computed(() => {
                 ? stepperAreaPlots
                 : stepperAreaPlots.filter((p) => p.value !== null);
 
+            const visibleValues = datapoint.absoluteValues.filter(
+                (value) => ![null, undefined, NaN].includes(value),
+            );
+
+            const isFlatTemperatureLine =
+                !!datapoint.temperatureColors &&
+                new Set(visibleValues).size <= 1;
+
             return {
                 ...datapoint,
+                isFlatTemperatureLine,
                 temperatureColors: datapoint.temperatureColors
                     ? datapoint.temperatureColors.map((c) =>
                           convertColorToHex(c),
@@ -4229,16 +4253,62 @@ watch(
         if (Array.isArray(_) && _.length > 0) {
             manualLoading.value = false;
         }
-        maxX.value = Math.max(
-            ...FINAL_DATASET.value.map(
-                (datapoint) => lttb(datapoint.series).length,
-            ),
-        );
 
-        slicer.value = {
-            start: 0,
-            end: maxX.value,
-        };
+        if (FINAL_CONFIG.value.chart.zoom.keepState) {
+            maxX.value = Math.max(
+                0,
+                ...FINAL_DATASET.value.map(
+                    (datapoint) => lttb(datapoint.series).length,
+                ),
+            );
+
+            if (maxX.value > 0) {
+                const previousStart = slicer.value.start;
+                const previousEnd = slicer.value.end;
+
+                const slicerIsNotInitialized =
+                    !slicerReady.value ||
+                    (previousStart === 0 && previousEnd === 0);
+
+                if (slicerIsNotInitialized) {
+                    setupSlicer();
+                } else {
+                    const nextStart = Math.max(
+                        0,
+                        Math.min(previousStart, maxX.value - 1),
+                    );
+
+                    const nextEnd = Math.max(
+                        nextStart + 1,
+                        Math.min(previousEnd, maxX.value),
+                    );
+
+                    slicer.value = {
+                        start: nextStart,
+                        end: nextEnd,
+                    };
+
+                    slicerPrecog.value = {
+                        start: nextStart,
+                        end: nextEnd,
+                    };
+
+                    absoluteSlicerStartIndex.value = 0;
+                    absoluteSlicerEndIndex.value = maxX.value;
+                }
+            }
+        } else {
+            maxX.value = Math.max(
+                ...FINAL_DATASET.value.map(
+                    (datapoint) => lttb(datapoint.series).length,
+                ),
+            );
+
+            slicer.value = {
+                start: 0,
+                end: maxX.value,
+            };
+        }
 
         slicerStep.value += 1;
         segregateStep.value += 1;
@@ -4255,14 +4325,32 @@ watch(
         if (!loading.value) {
             FINAL_CONFIG.value = prepareConfig();
         }
+
         prepareChart();
         titleStep.value += 1;
         tableStep.value += 1;
 
-        // Reset mutable config
         seedMutableFromConfig();
         setParentElementReference();
         runParentStableLayoutPass();
+
+        if (FINAL_CONFIG.value.chart.zoom.keepState) {
+            maxX.value = Math.max(
+                0,
+                ...FINAL_DATASET.value.map(
+                    (datapoint) => lttb(datapoint.series).length,
+                ),
+            );
+
+            if (
+                maxX.value > 0 &&
+                (!slicerReady.value ||
+                    (slicer.value.start === 0 && slicer.value.end === 0))
+            ) {
+                setupSlicer();
+            }
+        }
+
         normalizeSlicerWindow();
     },
     { deep: true },
@@ -4288,7 +4376,9 @@ onMounted(() => {
             // re-measure and re-init once we have size
             prepareChart();
             normalizeSlicerWindow();
-            setupSlicer();
+            if (!FINAL_CONFIG.value.chart.zoom.keepState) {
+                setupSlicer();
+            }
         }
     });
     if (chart.value?.parentNode) ro.observe(chart.value.parentNode);
@@ -4582,6 +4672,7 @@ defineExpose({
     toggleAnnotator,
     toggleFullscreen,
     copyAlt,
+    resetZoom: refreshSlicer,
 });
 </script>
 
@@ -5105,7 +5196,12 @@ defineExpose({
                                     />
                                 </linearGradient>
                             </defs>
-                            <defs v-if="serie.temperatureColors">
+                            <defs
+                                v-if="
+                                    serie.temperatureColors &&
+                                    !serie.isFlatTemperatureLine
+                                "
+                            >
                                 <linearGradient
                                     :id="`temperature_grad_line_${i}_${uniqueId}`"
                                     gradientTransform="rotate(90)"
@@ -6055,7 +6151,8 @@ defineExpose({
                                 "
                                 :d="`M${serie.curve}`"
                                 :stroke="
-                                    serie.temperatureColors
+                                    serie.temperatureColors &&
+                                    !serie.isFlatTemperatureLine
                                         ? `url(#temperature_grad_line_${i}_${uniqueId})`
                                         : serie.color
                                 "
@@ -6086,7 +6183,8 @@ defineExpose({
                                         stroke-linejoin="round"
                                         :d="`M ${seg.path}`"
                                         :stroke="
-                                            serie.temperatureColors
+                                            serie.temperatureColors &&
+                                            !serie.isFlatTemperatureLine
                                                 ? `url(#temperature_grad_line_${i}_${uniqueId})`
                                                 : serie.color
                                         "
@@ -6110,7 +6208,8 @@ defineExpose({
                                         stroke-linejoin="round"
                                         :d="`M ${seg.path}`"
                                         :stroke="
-                                            serie.temperatureColors
+                                            serie.temperatureColors &&
+                                            !serie.isFlatTemperatureLine
                                                 ? `url(#temperature_grad_line_${i}_${uniqueId})`
                                                 : serie.color
                                         "
@@ -6134,7 +6233,8 @@ defineExpose({
                                 "
                                 :d="`M${serie.straight}`"
                                 :stroke="
-                                    serie.temperatureColors
+                                    serie.temperatureColors &&
+                                    !serie.isFlatTemperatureLine
                                         ? `url(#temperature_grad_line_${i}_${uniqueId})`
                                         : serie.color
                                 "
@@ -7394,6 +7494,7 @@ defineExpose({
                         name="svg"
                         :svg="{
                             ...svg,
+                            slicer,
                             isPrintingImg:
                                 isPrinting || isImaging || isCallbackImaging,
                             isPrintingSvg: isCallbackSvg,
