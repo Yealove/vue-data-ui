@@ -1584,7 +1584,7 @@ declare module 'vue-data-ui' {
                 ) => VNodeChild;
                 svg?: (props: VueUiMoleculeSvgSlotProps) => VNodeChild;
                 watermark?: (props: VueUiWatermarkSlotProps) => VNodeChild;
-                ['resest-action']?: (
+                ['reset-action']?: (
                     props: VueUiResetActionSlotProps,
                 ) => VNodeChild;
                 source?: () => VNodeChild;
@@ -2533,7 +2533,7 @@ declare module 'vue-data-ui' {
                     props: VueUiKeyboardNavigationHintSlotProps,
                 ) => VNodeChild;
                 watermark?: (props: VueUiWatermarkSlotProps) => VNodeChild;
-                ['resest-action']?: (
+                ['reset-action']?: (
                     props: VueUiResetActionSlotProps,
                 ) => VNodeChild;
                 legend?: (
@@ -4416,7 +4416,7 @@ declare module 'vue-data-ui' {
                     props: VueUiKeyboardNavigationHintSlotProps,
                 ) => VNodeChild;
                 watermark?: (props: VueUiWatermarkSlotProps) => VNodeChild;
-                ['resest-action']?: (
+                ['reset-action']?: (
                     props: VueUiResetActionSlotProps,
                 ) => VNodeChild;
                 legend?: (props: VueUiCandlestickLegendSlotProps) => VNodeChild;
@@ -5705,7 +5705,7 @@ declare module 'vue-data-ui' {
         new (): VueUiXyExpose & {
             $slots: CommonAnnotatorSlots & {
                 legend?: (props: VueUiXyLegendSlotProps) => VNodeChild;
-                ['resest-action']?: (
+                ['reset-action']?: (
                     props: VueUiResetActionSlotProps,
                 ) => VNodeChild;
                 ['tooltip-before']?: (
@@ -9791,7 +9791,7 @@ declare module 'vue-data-ui' {
                     props: VueUiKeyboardNavigationHintSlotProps,
                 ) => VNodeChild;
                 watermark?: (props: VueUiWatermarkSlotProps) => VNodeChild;
-                ['resest-action']?: (
+                ['reset-action']?: (
                     props: VueUiResetActionSlotProps,
                 ) => VNodeChild;
                 source?: () => VNodeChild;
@@ -10625,7 +10625,7 @@ declare module 'vue-data-ui' {
                 watermark?: (props: VueUiWatermarkSlotProps) => VNodeChild;
                 source?: () => VNodeChild;
                 skeleton?: () => VNodeChild;
-                ['resest-action']?: (
+                ['reset-action']?: (
                     props: VueUiResetActionSlotProps,
                 ) => VNodeChild;
                 ['tooltip-before']?: (
@@ -10979,7 +10979,7 @@ declare module 'vue-data-ui' {
                 ['tooltip-after']?: (
                     props: VueUiXyCanvasTooltipSlotProps,
                 ) => VNodeChild;
-                ['resest-action']?: (
+                ['reset-action']?: (
                     props: VueUiResetActionSlotProps,
                 ) => VNodeChild;
                 legend?: (props: VueUiXyCanvasLegendSlotProps) => VNodeChild;
@@ -12373,10 +12373,15 @@ declare module 'vue-data-ui' {
                         show?: boolean;
                         intensity?: number;
                     };
+                    path?: {
+                        useSerieColor?: boolean;
+                        stroke?: string;
+                    };
                     dot?: {
                         hideAboveMaxSerieLength?: number;
                         useSerieColor?: boolean;
                         fill?: string;
+                        stroke?: string;
                         strokeWidth?: number;
                         radius?: number;
                     };
@@ -12627,7 +12632,7 @@ declare module 'vue-data-ui' {
                 source?: () => VNodeChild;
                 skeleton?: () => VNodeChild;
                 legend?: (props: VueUiStacklineLegendSlotProps) => VNodeChild;
-                ['resest-action']?: (
+                ['reset-action']?: (
                     props: VueUiResetActionSlotProps,
                 ) => VNodeChild;
                 ['tooltip-before']?: (
@@ -14259,7 +14264,7 @@ declare module 'vue-data-ui' {
                 legend?: (props: VueUiChordLegendSlotProps) => VNodeChild;
                 pattern?: (props: VueUiChordPatternSlotProps) => VNodeChild;
                 source?: () => VNodeChild;
-                ['resest-action']?: (
+                ['reset-action']?: (
                     props: VueUiResetActionSlotProps,
                 ) => VNodeChild;
                 skeleton?: () => VNodeChild;

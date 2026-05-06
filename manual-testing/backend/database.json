@@ -1349,6 +1349,23 @@
             "id": "1f78128e-67cd-4d2a-98c5-d03a4793ce88",
             "createdAt": 1777351193418,
             "updatedAt": 1777407735351
+        },
+        {
+            "title": "VueUiStackline path stroke",
+            "component": "VueUiStackline",
+            "description": "Add config to control the stroke color for paths. useSerieColor usual thing",
+            "priority": 1,
+            "author": "graphieros",
+            "done": false,
+            "exchanges": [],
+            "type": "feature",
+            "withComponentCheckList": false,
+            "checkList": {},
+            "withCustomCheckList": false,
+            "customCheckList": {},
+            "id": "5882f257-2c9c-4d9c-b9c4-9f9b084adcd9",
+            "createdAt": 1777908631920,
+            "updatedAt": 1777908631920
         }
     ]
 }
