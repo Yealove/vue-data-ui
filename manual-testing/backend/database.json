@@ -1389,6 +1389,46 @@
             "id": "676d3ed1-3734-41e0-87ec-bbfb4e32b2cf",
             "createdAt": 1778739184067,
             "updatedAt": 1778767022317
+        },
+        {
+            "title": "emit selectLegend from legend toggle ",
+            "component": "",
+            "description": "@selectLegend should be emitted when using the legend toggle",
+            "priority": 2,
+            "author": "graphieros",
+            "done": true,
+            "exchanges": [],
+            "type": "feature",
+            "withComponentCheckList": false,
+            "checkList": {},
+            "withCustomCheckList": true,
+            "customCheckList": {
+                "vue-ui-donut": true,
+                "vue-ui-donut-evolution": true,
+                "vue-ui-galaxy": true,
+                "vue-ui-history-plot": true,
+                "vue-ui-horizontal-bar": true,
+                "vue-ui-nested-donuts": true,
+                "vue-ui-onion": true,
+                "vue-ui-parallel-coordinate-plot": true,
+                "vue-ui-quadrant": true,
+                "vue-ui-quick-chart": true,
+                "vue-ui-radar": true,
+                "vue-ui-ridgeline": true,
+                "vue-ui-rings": true,
+                "vue-ui-scatter": true,
+                "vue-ui-sparkstackbar": true,
+                "vue-ui-stackbar": true,
+                "vue-ui-stackline": true,
+                "vue-ui-treemap": true,
+                "vue-ui-waffle": true,
+                "vue-ui-world": true,
+                "vue-ui-xy": true,
+                "vue-ui-xy-canvas": true
+            },
+            "id": "123cf2a9-6a76-42a2-a129-f071db272721",
+            "createdAt": 1779116028546,
+            "updatedAt": 1779163926858
         }
     ]
 }
